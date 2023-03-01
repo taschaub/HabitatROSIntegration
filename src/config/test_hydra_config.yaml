@@ -1,0 +1,46 @@
+# @package _global_
+
+defaults:
+  - environment: env_config
+  - simulator: sim_config
+  - dataset: dataset_config
+  - task: task_config
+  - _self_
+
+environment:
+  max_episode_steps: ${MAX_EPISODE_STEPS:10}
+  iterator_options:
+    shuffle: ${SHUFFLE:False}
+
+simulator:
+  agent_0:
+    sensors: ${SENSORS:['RGB_SENSOR', 'DEPTH_SENSOR', 'SEMANTIC_SENSOR']}
+  rgb_sensor:
+    width: ${WIDTH:128}
+    height: ${HEIGHT:128}
+    hfov: ${HFOV:90}
+  semantic_sensor:
+    width: ${WIDTH:128}
+    height: ${HEIGHT:128}
+    hfov: ${HFOV:90}
+  depth_sensor:
+    width: ${WIDTH:128}
+    height: ${HEIGHT:128}
+    hfov: ${HFOV:90}
+
+dataset:
+  type: ${TYPE:PointNav-v1}
+  split: ${SPLIT:train}
+  data_path: ${DATA_PATH:/home/shen/habitat_data/myproject/habitat/SemanticAnticipation/data/datasets/pointnav/mp3d/v1/{split}/{split}.json.gz}
+
+task:
+  type: ${TYPE:Nav-v0}
+  sensors: ${SENSORS:['POINTGOAL_WITH_GPS_COMPASS_SENSOR']}
+  possible_actions: ${POSSIBLE_ACTIONS:['STOP', 'MOVE_FORWARD', 'TURN_LEFT', 'TURN_RIGHT', 'TELEPORT']}
+  pointgoal_with_gps_compass_sensor:
+    goal_format: ${GOAL_FORMAT:"POLAR"}
+    dimensionality: ${DIMENSIONALITY:2}
+  goal_sensor_uuid: ${GOAL_SENSOR_UUID:pointgoal_with_gps_compass}
+  measurements: ${MEASUREMENTS:['DISTANCE_TO_GOAL', 'SUCCESS', 'SPL', 'SOFT_SPL']}
+  success:
+    success_distance: ${SUCCESS_DISTANCE:0.2}
