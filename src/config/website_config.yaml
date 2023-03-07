@@ -1,0 +1,25 @@
+# @package _global_
+
+# defaults list:
+defaults:
+  - /habitat: habitat_config_base
+  - /habitat/task: pointnav
+  - /habitat/simulator/agents:
+    - rgbd_agent
+  - /habitat/dataset/pointnav: mp3d
+  - _self_
+
+# config values overrides:
+habitat:
+  environment:
+    max_episode_steps: 100
+  simulator:
+    agents:
+      rgbd_agent:
+        sim_sensors:
+          rgb_sensor:
+            width: 256
+            height: 256
+          depth_sensor:
+            width: 256
+            height: 256
