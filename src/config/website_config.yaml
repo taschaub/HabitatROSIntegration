@@ -6,7 +6,7 @@ defaults:
   - /habitat/task: pointnav
   - /habitat/simulator/agents:
     - rgbd_agent
-  - /habitat/dataset/pointnav: mp3d
+  - /habitat/dataset/pointnav: habitat_test #mp3d
   - _self_
 
 # config values overrides:
