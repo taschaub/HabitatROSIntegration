@@ -1,9 +1,18 @@
 #!/usr/bin/env python
 import rospy
-from std_msgs.msg import String
+from publish_test.msg import BasicAction
+
+action_mapping = {
+        0: 'stop',
+        1: 'move_forward',
+        2: 'turn left',
+        3: 'turn right'
+    }
 
 def callback(data):
-    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+    receivedAction=action_mapping[data.ActionIdx]
+    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.Action)
+    print(receivedAction)
     
 def listener():
 
@@ -14,7 +23,7 @@ def listener():
     # run simultaneously.
     rospy.init_node('listener', anonymous=True)
 
-    rospy.Subscriber("chatter", String, callback)
+    rospy.Subscriber("chatter", BasicAction, callback)
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()

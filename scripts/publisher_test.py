@@ -7,20 +7,20 @@ import habitat
 # from habitat.config.default import get_config
 import random
 from habitat.core.simulator import AgentState
-from geometry_msgs.msg import Twist
+from publish_test.msg import BasicAction
 import sys, termios, tty, os
 
 
 def talker():
-    pub = rospy.Publisher('chatter', Twist, queue_size=10)
+    pub = rospy.Publisher('chatter', BasicAction, queue_size=10)
     rospy.init_node('talker', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
-    
+    rate = rospy.Rate(10)  # 10hz
+
     while not rospy.is_shutdown():
-        # hello_str = "hello world %s" % rospy.get_time()
-        move_cmd = Twist()
-        move_cmd.linear.x = 1.0
-        
+        move_cmd = BasicAction()
+        move_cmd.Action = "STOP"
+        move_cmd.ActionIdx = 0
+
         # read a single key from the user
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
@@ -29,12 +29,17 @@ def talker():
             ch = sys.stdin.read(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        
+
         # check if the key is entered
         if ch:
-            rospy.loginfo(move_cmd)
-            pub.publish(move_cmd)
-        
+            if ch in ['0', '1', '2', '3']:
+                move_cmd.ActionIdx = int(ch)
+                move_cmd.Action = ["STOP", "FORWARD", "BACKWARD", "TURN"][move_cmd.ActionIdx]
+                rospy.loginfo(move_cmd)
+                pub.publish(move_cmd)
+            else:
+                rospy.loginfo("Action not defined")
+
         rate.sleep()
 
 if __name__ == '__main__':

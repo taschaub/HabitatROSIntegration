@@ -8,7 +8,9 @@ project(publish_test)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  rospy
+  rospy 
+  message_generation 
+  std_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -45,11 +47,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  BasicAction.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -66,10 +67,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs  # Or other packages containing msgs
+)
 
 
 
@@ -105,8 +106,8 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES publish_test
-#  CATKIN_DEPENDS rospy
-#  DEPENDS system_lib
+CATKIN_DEPENDS rospy std_msgs message_runtime
+#  DEPENDS message_runtime
 )
 
 ###########
@@ -160,7 +161,11 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  scripts/publish_test.py scripts/subscriber_test.py scripts/habitat_test.py scripts/basic_test.py
+  scripts/publisher_test.py 
+  scripts/subscriber_test.py 
+  scripts/habitat_test.py 
+  scripts/basic_test.py
+  scripts/test_basic_msg.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
