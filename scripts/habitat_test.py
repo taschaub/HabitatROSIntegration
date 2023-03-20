@@ -3,7 +3,7 @@
 
 import rospy
 import habitat
-from geometry_msgs.msg import Twist
+from publish_test.msg import BasicAction
 from habitat.config.read_write import read_write
 
 
@@ -16,36 +16,34 @@ def main():
 
     # Define the Habitat agent configuration
     agent_config = habitat.get_config(config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml")
-    # agent_config.defrost()
-    # agent_config.SIMULATOR.SCENE = scene
-    # agent_config.freeze()
+
     with read_write(agent_config):
         agent_config.habitat.simulator.scene = scene
     print(agent_config.habitat.simulator.scene)
+    
+    # Create the Habitat environment and agent
+    env = habitat.Env(agent_config)
+
 
     # Define the ROS callback function
-    def callback(data):
-        # Convert the ROS twist message to a Habitat action
-        action = {
-            "action": "move",
-            "amount": data.linear.x,
-            "rotation": data.angular.z,
-        }
-
+    def callback(data, env):
+        print(env)
         # Move the agent in Habitat
-        observations = env.step(1)
-        print("node was reached")
+        print(data.ActionIdx)
+        # observations = env.step(1)
+        # 
+        # print("Node performed {data.Action}")
 
     # Initialize the ROS node and subscriber
     rospy.init_node("habitat_ros_bridge")
-    rospy.Subscriber(topic, Twist, callback)
-
-    # Create the Habitat environment and agent
-    env = habitat.Env(agent_config)
+    
+    rospy.Subscriber(topic, BasicAction, callback, callback_args=env)
+   
     observations = env.reset()
     # Start the ROS spin loop
-    rospy.spin()
     print("loaded")
+    rospy.spin()
+    
 
 if __name__ == "__main__":
     main()
