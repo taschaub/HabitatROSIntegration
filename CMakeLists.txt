@@ -166,6 +166,7 @@ catkin_install_python(PROGRAMS
   scripts/habitat_test.py 
   scripts/basic_test.py
   scripts/test_basic_msg.py
+  scripts/print_map.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
