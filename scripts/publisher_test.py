@@ -32,9 +32,9 @@ def talker():
 
         # check if the key is entered
         if ch:
-            if ch in ['0', '1', '2', '3']:
+            if ch in ['0', '1', '2', '3', '4']:
                 move_cmd.ActionIdx = int(ch)
-                move_cmd.Action = ["STOP", "FORWARD", "TURN LEFT", "TURN RIGHT"][move_cmd.ActionIdx]
+                move_cmd.Action = ["STOP", "FORWARD", "TURN LEFT", "TURN RIGHT", "PRINT SCREEN"][move_cmd.ActionIdx]
                 rospy.loginfo(move_cmd)
                 pub.publish(move_cmd)
             else:

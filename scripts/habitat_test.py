@@ -61,7 +61,8 @@ def habitat_thread(agent_config, scene, action_queue):
         0: 'stop',
         1: 'move_forward',
         2: 'turn left',
-        3: 'turn right'
+        3: 'turn right',
+        4: 'print screen'
     }
 
     while not rospy.is_shutdown():
@@ -78,18 +79,31 @@ def habitat_thread(agent_config, scene, action_queue):
             # Get the action name from the action_mapping dictionary
             action_name = action_mapping.get(action_idx, None)
             if action_name is not None:
-                print("Executing action:", action_name)
-                observations = env.step(action_idx)
-                # print(observations)
+                if action_name == "print screen":
+                    # Access the depth sensor data
+                    depth_data = observations["depth"]
+
+                    # Convert depth data to a format suitable for saving as an image
+                    depth_image = (depth_data * 255).astype(np.uint8)
+
+                    # Save the depth image to a file
+                    cv2.imwrite("depth_image.png", depth_image)
+
+                    # Display the depth image
+                    cv2.imshow("Depth Image", depth_image)
+                    cv2.waitKey(1)
+
+                else:
+                    print("Executing action:", action_name)
+                    observations = env.step(action_idx)
             else:
-                print("Invalid action index:", action_idx)   
+                print("Invalid action index:", action_idx)
+ 
 
         # Check if the episode is over and reset the environment
         if env.episode_over:
             print("Episode over. Resetting the environment.")
             observations = env.reset()
-
-
 
 
 def main():
