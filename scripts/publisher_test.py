@@ -34,7 +34,7 @@ def talker():
         if ch:
             if ch in ['0', '1', '2', '3']:
                 move_cmd.ActionIdx = int(ch)
-                move_cmd.Action = ["STOP", "FORWARD", "BACKWARD", "TURN"][move_cmd.ActionIdx]
+                move_cmd.Action = ["STOP", "FORWARD", "TURN LEFT", "TURN RIGHT"][move_cmd.ActionIdx]
                 rospy.loginfo(move_cmd)
                 pub.publish(move_cmd)
             else:

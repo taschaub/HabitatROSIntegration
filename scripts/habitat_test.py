@@ -14,22 +14,31 @@ from habitat.utils.visualizations import maps
 
 def display_top_down_map(env):
     agent_state = env.sim.get_agent_state()
-    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.1, height=0.5)
+    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.05, height=0.5)
     top_down_map = maps.colorize_topdown_map(top_down_map)
 
     # Draw the agent's position and orientation on the map
     agent_pos = agent_state.position
     agent_rot = agent_state.rotation
-    agent_angle = -2 * math.atan2(agent_rot.y, agent_rot.w)  # Get agent's yaw (rotation around the Z-axis)
+    agent_angle = -2 * math.atan2(agent_rot.w, agent_rot.y)  # Get agent's yaw (rotation around the Z-axis)
 
     # Convert the agent position to integer values
-    grid_resolution = 0.1
-    agent_pos_grid = (agent_pos - env.sim.pathfinder.get_bounds()[0]) / grid_resolution
+    grid_resolution = 0.05
+    bounds = env.sim.pathfinder.get_bounds()
+    lower_bounds = bounds[0][[0, 2]]
+    upper_bounds = bounds[1][[0, 2]]
+
+    # Calculate the size of the map
+    map_size = (upper_bounds - lower_bounds) / grid_resolution
+
+    # Convert the agent position to grid coordinates
+    agent_pos_grid = (agent_pos[[0, 2]] - lower_bounds) / grid_resolution
     agent_pos_int = np.round(agent_pos_grid).astype(np.int32)
+    agent_pos_int_swapped = [agent_pos_int[1],agent_pos_int[0]]
 
     top_down_map_with_agent = maps.draw_agent(
         top_down_map,
-        agent_pos_int,
+        agent_pos_int_swapped,
         agent_angle,
         agent_radius_px=8,  # Adjust the agent_radius_px for the size of the agent marker
         # agent_color=(0, 0, 255)
@@ -37,6 +46,7 @@ def display_top_down_map(env):
 
     cv2.imshow("Top Down Map", top_down_map_with_agent)
     cv2.waitKey(1)
+
 
 def habitat_thread(agent_config, scene, action_queue):
     with read_write(agent_config):
@@ -46,13 +56,39 @@ def habitat_thread(agent_config, scene, action_queue):
     env = habitat.Env(agent_config)
     observations = env.reset()
 
+    # Create a dictionary to map action indices to action names
+    action_mapping = {
+        0: 'stop',
+        1: 'move_forward',
+        2: 'turn left',
+        3: 'turn right'
+    }
+
     while not rospy.is_shutdown():
         display_top_down_map(env)
+
+        # Print the current position and rotation
+        agent_state = env.sim.get_agent_state()
+      
+
         if not action_queue.empty():
-            action = action_queue.get()
-            print(action)
-            observations = env.step(action)
-            print(observations)
+            action_idx = action_queue.get()
+            print("Action index received:", action_idx)
+
+            # Get the action name from the action_mapping dictionary
+            action_name = action_mapping.get(action_idx, None)
+            if action_name is not None:
+                print("Executing action:", action_name)
+                observations = env.step(action_idx)
+                # print(observations)
+            else:
+                print("Invalid action index:", action_idx)   
+
+        # Check if the episode is over and reset the environment
+        if env.episode_over:
+            print("Episode over. Resetting the environment.")
+            observations = env.reset()
+
 
 
 
