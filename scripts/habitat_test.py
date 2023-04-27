@@ -12,6 +12,9 @@ import numpy as np
 import cv2
 from habitat.utils.visualizations import maps
 
+from sensor_msgs.msg import Image, CameraInfo
+from cv_bridge import CvBridge
+
 def display_top_down_map(env):
     agent_state = env.sim.get_agent_state()
     top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.05, height=0.5)
@@ -43,12 +46,24 @@ def display_top_down_map(env):
         agent_radius_px=8,  # Adjust the agent_radius_px for the size of the agent marker
         # agent_color=(0, 0, 255)
     )
-
-    cv2.imshow("Top Down Map", top_down_map_with_agent)
+    cv2.imwrite("top_down_map.png", top_down_map_with_agent)
+    #cv2.imshow("Top Down Map", top_down_map_with_agent)
     cv2.waitKey(1)
 
+def publish_depth_and_rgb(observations):
+    bridge = CvBridge()
 
-def habitat_thread(agent_config, scene, action_queue):
+    # Convert depth data to a format suitable for saving as an image
+    depth_data = (observations["depth"] * 255).astype(np.uint8)
+    depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="mono8")
+
+    # Convert RGB data to a format suitable for saving as an image
+    rgb_data = observations["rgb"]
+    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data, encoding="bgr8")
+
+    return depth_image_msg, rgb_image_msg
+
+def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher):
     with read_write(agent_config):
         agent_config.habitat.simulator.scene = scene
     print(agent_config.habitat.simulator.scene)
@@ -66,11 +81,15 @@ def habitat_thread(agent_config, scene, action_queue):
     }
 
     while not rospy.is_shutdown():
+
         display_top_down_map(env)
+
+        depth_image_msg, rgb_image_msg = publish_depth_and_rgb(observations)
+        depth_publisher.publish(depth_image_msg)
+        rgb_publisher.publish(rgb_image_msg)
 
         # Print the current position and rotation
         agent_state = env.sim.get_agent_state()
-      
 
         if not action_queue.empty():
             action_idx = action_queue.get()
@@ -90,7 +109,7 @@ def habitat_thread(agent_config, scene, action_queue):
                     cv2.imwrite("depth_image.png", depth_image)
 
                     # Display the depth image
-                    cv2.imshow("Depth Image", depth_image)
+                    #cv2.imshow("Depth Image", depth_image)
                     cv2.waitKey(1)
 
                 else:
@@ -98,13 +117,11 @@ def habitat_thread(agent_config, scene, action_queue):
                     observations = env.step(action_idx)
             else:
                 print("Invalid action index:", action_idx)
- 
 
         # Check if the episode is over and reset the environment
         if env.episode_over:
             print("Episode over. Resetting the environment.")
             observations = env.reset()
-
 
 def main():
     topic = "chatter"
@@ -113,19 +130,21 @@ def main():
 
     action_queue = Queue()
 
-    ht = Thread(target=habitat_thread, args=(agent_config, scene, action_queue))
+    rospy.init_node("habitat_ros_bridge")
+
+    depth_publisher = rospy.Publisher("depth_image", Image, queue_size=10)
+    rgb_publisher = rospy.Publisher("rgb_image", Image, queue_size=10)
+
+    ht = Thread(target=habitat_thread, args=(agent_config, scene, action_queue, depth_publisher, rgb_publisher))
     ht.start()
 
     def callback(data):
         print("Action received:", data.ActionIdx)
         action_queue.put(data.ActionIdx)
 
-    rospy.init_node("habitat_ros_bridge")
     rospy.Subscriber(topic, BasicAction, callback)
     print("loaded")
     rospy.spin()
 
-
 if __name__ == "__main__":
     main()
-   
