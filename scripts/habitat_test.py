@@ -3,6 +3,9 @@
 import rospy
 import habitat
 from publish_test.msg import BasicAction
+# from publish_test.scripts.gtego_map import GTEgoMap 
+from gtego_map import GTEgoMap
+# why does "from gtego_map import GTEgoMap" not work???
 from habitat.config.read_write import read_write
 from threading import Thread
 from queue import Queue
@@ -14,6 +17,12 @@ from habitat.utils.visualizations import maps
 
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
+
+import geometry_msgs.msg
+import tf2_ros
+import tf
+
+from map_server import MapServer
 
 def display_top_down_map(env):
     agent_state = env.sim.get_agent_state()
@@ -50,20 +59,83 @@ def display_top_down_map(env):
     #cv2.imshow("Top Down Map", top_down_map_with_agent)
     cv2.waitKey(1)
 
-def publish_depth_and_rgb(observations):
+def publish_rgb_image(observations, rgb_image_publisher):
+    bridge = CvBridge()
+
+    # Convert RGB data to a format suitable for saving as an image
+    rgb_data = observations["rgb"]
+    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data, encoding="bgr8")
+
+    # Publish the RGB image
+    rgb_image_publisher.publish(rgb_image_msg)
+
+def publish_depth_image(observations, depth_image_publisher):
     bridge = CvBridge()
 
     # Convert depth data to a format suitable for saving as an image
     depth_data = (observations["depth"] * 255).astype(np.uint8)
     depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="mono8")
 
-    # Convert RGB data to a format suitable for saving as an image
-    rgb_data = observations["rgb"]
-    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data, encoding="bgr8")
+    # Publish the depth image
+    depth_image_publisher.publish(depth_image_msg)
 
-    return depth_image_msg, rgb_image_msg
+def publish_camera_info(env, camera_info_publisher):
+    camera_config = env._sim._sensor_suite.sensors["rgb"].config
 
-def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher):
+    # Calculate the vertical field of view (vfov) using the aspect ratio and hfov
+    aspect_ratio = float(camera_config.width) / float(camera_config.height)
+    vfov = 2 * math.atan(math.tan(math.radians(camera_config.hfov / 2)) / aspect_ratio)
+    vfov = math.degrees(vfov)
+
+    # Calculate the camera matrix (intrinsics) using the focal length
+    fx = camera_config.width / (2 * math.tan(math.radians(camera_config.hfov / 2)))
+    fy = camera_config.height / (2 * math.tan(math.radians(vfov / 2)))
+    cx = camera_config.width / 2
+    cy = camera_config.height / 2
+    camera_matrix = [fx, 0, cx, 0, fy, cy, 0, 0, 1]
+
+    camera_info = CameraInfo()
+    camera_info.header.stamp = rospy.Time.now()
+    camera_info.header.frame_id = "camera_link"
+    camera_info.width = camera_config.width
+    camera_info.height = camera_config.height
+    camera_info.distortion_model = "plumb_bob"
+    camera_info.D = [0.0, 0.0, 0.0, 0.0, 0.0]  # Assuming no distortion
+    camera_info.K = camera_matrix
+    camera_info.R = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]  # Identity rotation matrix
+    camera_info.P = [fx, 0, cx, 0, 0, fy, cy, 0, 0, 0, 1, 0]  # Projection matrix
+
+    camera_info_publisher.publish(camera_info)
+
+
+def publish_transforms(agent_state, tf_broadcaster):
+    transform = geometry_msgs.msg.TransformStamped()
+
+    # Set the frame IDs
+    transform.header.frame_id = "world"
+    transform.child_frame_id = "habitat_agent"
+
+    # Set the translation
+    transform.transform.translation.x = agent_state.position[0]
+    transform.transform.translation.y = agent_state.position[1]
+    transform.transform.translation.z = agent_state.position[2]
+
+    # Set the rotation
+    quaternion = (agent_state.rotation.x, agent_state.rotation.y, agent_state.rotation.z, agent_state.rotation.w)
+    euler_angles = tf.transformations.euler_from_quaternion(quaternion)
+    quaternion = tf.transformations.quaternion_from_euler(euler_angles[0], euler_angles[1], euler_angles[2])
+    transform.transform.rotation.x = quaternion[0]
+    transform.transform.rotation.y = quaternion[1]
+    transform.transform.rotation.z = quaternion[2]
+    transform.transform.rotation.w = quaternion[3]
+
+    # Set the timestamp
+    transform.header.stamp = rospy.Time.now()
+
+    # Publish the transform
+    tf_broadcaster.sendTransform(transform)
+
+def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     with read_write(agent_config):
         agent_config.habitat.simulator.scene = scene
     print(agent_config.habitat.simulator.scene)
@@ -79,14 +151,53 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         3: 'turn right',
         4: 'print screen'
     }
+    
+    # Create an instance of the GTEgoMap class
+    depth_height = env._sim._sensor_suite.sensors["depth"].config.height
+    depth_width = env._sim._sensor_suite.sensors["depth"].config.width
+    ego_map = GTEgoMap(depth_H=depth_height, depth_W=depth_width)
+    
+    # Create an instance of the MapServer class
+    map_server = MapServer()
 
     while not rospy.is_shutdown():
 
         display_top_down_map(env)
+        
+        depth_data = observations["depth"]
+        ego_map_image = ego_map.get_observation(depth_data)  # Generate the occupancy map here
+        
+        #convert ego map image to have correct number of channels
+        explored_map = ego_map_image[:, :, 0] * 255
+        obstacle_map = ego_map_image[:, :, 1] * 255
 
-        depth_image_msg, rgb_image_msg = publish_depth_and_rgb(observations)
-        depth_publisher.publish(depth_image_msg)
-        rgb_publisher.publish(rgb_image_msg)
+        rgb_image = np.zeros((*ego_map_image.shape[:2], 3), dtype=np.uint8)
+
+        rgb_image[:, :, 1] = obstacle_map  # Green channel for obstacles
+        rgb_image[:, :, 2] = explored_map
+        
+        # Update the map data and publish the map
+        published_map = (ego_map_image[:, :, 1] - 0.5) * 2 * 127
+        published_map = published_map.astype(np.int8)
+
+        map_server.update_map_data(published_map)
+        map_server.publish_map()
+        
+        #create a map server and publish the map in an ros topic
+        # map_server = MapServer(obstacle_map)
+        # map_server.publish_map()
+        
+
+
+        #cv2.imwrite('ego_map_image.png', rgb_image)
+        # Save the occupancy map as an image file
+        #cv2.imwrite('ego_map_image.png', ego_map_image * 255)
+
+        # Publish the rgb and depth images
+        publish_rgb_image(observations, rgb_publisher)
+        publish_depth_image(observations, depth_publisher)
+        publish_camera_info(env, camera_info_publisher)
+        publish_transforms(env.sim.get_agent_state(), tf_broadcaster)
 
         # Print the current position and rotation
         agent_state = env.sim.get_agent_state()
@@ -107,6 +218,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
 
                     # Save the depth image to a file
                     cv2.imwrite("depth_image.png", depth_image)
+                    cv2.imwrite('ego_map_image.png', rgb_image)
 
                     # Display the depth image
                     #cv2.imshow("Depth Image", depth_image)
@@ -134,8 +246,10 @@ def main():
 
     depth_publisher = rospy.Publisher("depth_image", Image, queue_size=10)
     rgb_publisher = rospy.Publisher("rgb_image", Image, queue_size=10)
-
-    ht = Thread(target=habitat_thread, args=(agent_config, scene, action_queue, depth_publisher, rgb_publisher))
+    camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, queue_size=10)
+    tf_broadcaster = tf2_ros.TransformBroadcaster()
+              
+    ht = Thread(target=habitat_thread, args=(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster))
     ht.start()
 
     def callback(data):
