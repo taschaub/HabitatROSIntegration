@@ -24,9 +24,9 @@ class MapServer:
         # Set metadata (you need to fill in your values here)
         map_meta_data.width = self.map_data.shape[1]
         map_meta_data.height = self.map_data.shape[0]
-        map_meta_data.resolution = 0.05  # Depends on your map's resolution
-        map_meta_data.origin.position.x = 0  # Depends on your map's origin
-        map_meta_data.origin.position.y = 0  # Depends on your map's origin
+        map_meta_data.resolution = 0.02  # Depends on your map's resolution
+        map_meta_data.origin.position.x = -5  # Depends on your map's origin
+        map_meta_data.origin.position.y = -5  # Depends on your map's origin
 
         map_msg.info = map_meta_data
 

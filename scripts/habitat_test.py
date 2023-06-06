@@ -112,8 +112,8 @@ def publish_transforms(agent_state, tf_broadcaster):
     transform = geometry_msgs.msg.TransformStamped()
 
     # Set the frame IDs
-    transform.header.frame_id = "world"
-    transform.child_frame_id = "habitat_agent"
+    transform.header.frame_id = "map"
+    transform.child_frame_id = "base_link"
 
     # Set the translation
     transform.transform.translation.x = agent_state.position[0]
@@ -134,6 +134,63 @@ def publish_transforms(agent_state, tf_broadcaster):
 
     # Publish the transform
     tf_broadcaster.sendTransform(transform)
+    
+def publish_noisy_odom_transform(agent_state, tf_broadcaster, noise_std_dev=0.1):
+    transform = geometry_msgs.msg.TransformStamped()
+
+    # Set the frame IDs
+    transform.header.frame_id = "odom"
+    transform.child_frame_id = "base_link"
+
+    # Set the translation with added noise
+    transform.transform.translation.x = agent_state.position[0] + np.random.normal(0, noise_std_dev)
+    transform.transform.translation.y = agent_state.position[1] + np.random.normal(0, noise_std_dev)
+    transform.transform.translation.z = agent_state.position[2] + np.random.normal(0, noise_std_dev)
+
+    # Set the rotation with added noise
+    quaternion = (agent_state.rotation.x, agent_state.rotation.y, agent_state.rotation.z, agent_state.rotation.w)
+    euler_angles = tf.transformations.euler_from_quaternion(quaternion)
+    noisy_euler_angles = [angle + np.random.normal(0, noise_std_dev) for angle in euler_angles]
+    noisy_quaternion = tf.transformations.quaternion_from_euler(*noisy_euler_angles)
+    transform.transform.rotation.x = noisy_quaternion[0]
+    transform.transform.rotation.y = noisy_quaternion[1]
+    transform.transform.rotation.z = noisy_quaternion[2]
+    transform.transform.rotation.w = noisy_quaternion[3]
+
+    # Set the timestamp
+    transform.header.stamp = rospy.Time.now()
+
+    # Publish the transform
+    tf_broadcaster.sendTransform(transform)
+    
+def publish_map_odom_transform(agent_state, tf_broadcaster, noise_std_dev=0.1):
+    transform = geometry_msgs.msg.TransformStamped()
+
+    # Set the frame IDs
+    transform.header.frame_id = "map"
+    transform.child_frame_id = "odom"
+
+    # Set the translation with added noise
+    transform.transform.translation.x = agent_state.position[0] + np.random.normal(0, noise_std_dev)
+    transform.transform.translation.y = agent_state.position[1] + np.random.normal(0, noise_std_dev)
+    transform.transform.translation.z = agent_state.position[2] + np.random.normal(0, noise_std_dev)
+
+    # Set the rotation with added noise
+    quaternion = (agent_state.rotation.x, agent_state.rotation.y, agent_state.rotation.z, agent_state.rotation.w)
+    euler_angles = tf.transformations.euler_from_quaternion(quaternion)
+    noisy_euler_angles = [angle + np.random.normal(0, noise_std_dev) for angle in euler_angles]
+    noisy_quaternion = tf.transformations.quaternion_from_euler(*noisy_euler_angles)
+    transform.transform.rotation.x = noisy_quaternion[0]
+    transform.transform.rotation.y = noisy_quaternion[1]
+    transform.transform.rotation.z = noisy_quaternion[2]
+    transform.transform.rotation.w = noisy_quaternion[3]
+
+    # Set the timestamp
+    transform.header.stamp = rospy.Time.now()
+
+    # Publish the transform
+    tf_broadcaster.sendTransform(transform)
+
 
 def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     with read_write(agent_config):
@@ -168,7 +225,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         ego_map_image = ego_map.get_observation(depth_data)  # Generate the occupancy map here
         
         #convert ego map image to have correct number of channels
-        explored_map = ego_map_image[:, :, 0] * 255
+        explored_map = ego_map_image[:, :, 0] * 255 # maybe switched?
         obstacle_map = ego_map_image[:, :, 1] * 255
 
         rgb_image = np.zeros((*ego_map_image.shape[:2], 3), dtype=np.uint8)
@@ -177,7 +234,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         rgb_image[:, :, 2] = explored_map
         
         # Update the map data and publish the map
-        published_map = (ego_map_image[:, :, 1] - 0.5) * 2 * 127
+        published_map = (ego_map_image[:, :, 0] - 0.5) * 2 * 127
         published_map = published_map.astype(np.int8)
 
         map_server.update_map_data(published_map)
@@ -197,8 +254,9 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         publish_rgb_image(observations, rgb_publisher)
         publish_depth_image(observations, depth_publisher)
         publish_camera_info(env, camera_info_publisher)
-        publish_transforms(env.sim.get_agent_state(), tf_broadcaster)
-
+        # publish_transfonrms(env.sim.get_agent_state(), tf_broadcaster)
+        publish_map_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
+        publish_noisy_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
         # Print the current position and rotation
         agent_state = env.sim.get_agent_state()
 
@@ -248,6 +306,7 @@ def main():
     rgb_publisher = rospy.Publisher("rgb_image", Image, queue_size=10)
     camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, queue_size=10)
     tf_broadcaster = tf2_ros.TransformBroadcaster()
+
               
     ht = Thread(target=habitat_thread, args=(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster))
     ht.start()
