@@ -15,7 +15,8 @@ import numpy as np
 import cv2
 from habitat.utils.visualizations import maps
 
-from sensor_msgs.msg import Image, CameraInfo
+#overwrite Image to avoid confusion with PilImage
+from sensor_msgs.msg import Image as RosImage, CameraInfo
 from cv_bridge import CvBridge
 
 import geometry_msgs.msg
@@ -24,9 +25,16 @@ import tf
 
 from map_server import MapServer
 
+#from PIL import Image
+#Image also in sensor.msg
+from PIL import Image as PilImage
+
+import yaml
+
+
 def display_top_down_map(env):
     agent_state = env.sim.get_agent_state()
-    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.05, height=0.5)
+    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.2, height=0.5)
     top_down_map = maps.colorize_topdown_map(top_down_map)
 
     # Draw the agent's position and orientation on the map
@@ -58,6 +66,30 @@ def display_top_down_map(env):
     cv2.imwrite("top_down_map.png", top_down_map_with_agent)
     #cv2.imshow("Top Down Map", top_down_map_with_agent)
     cv2.waitKey(1)
+    
+    top_down_map = cv2.cvtColor(top_down_map, cv2.COLOR_BGR2GRAY)
+    top_down_map = cv2.normalize(top_down_map, None, 0, 255, cv2.NORM_MINMAX)
+
+    save_image_and_yaml(top_down_map, 'test_map.pgm', 'test_map.yaml')
+
+    
+    
+def save_image_and_yaml(top_down_map, pgm_filename, yaml_filename, resolution=0.05, origin=[0.0, 0.0, 0.0]):
+    image = PilImage.fromarray(top_down_map)
+    image.save(pgm_filename)
+
+    # Create yaml file
+    yaml_data = dict(
+        image=pgm_filename,
+        resolution=resolution,
+        origin=origin,
+        negate=0,
+        occupied_thresh=0.65,
+        free_thresh=0.196,
+    )
+
+    with open(yaml_filename, 'w') as outfile:
+        yaml.dump(yaml_data, outfile, default_flow_style=False)
 
 def publish_rgb_image(observations, rgb_image_publisher):
     bridge = CvBridge()
@@ -302,8 +334,8 @@ def main():
 
     rospy.init_node("habitat_ros_bridge")
 
-    depth_publisher = rospy.Publisher("depth_image", Image, queue_size=10)
-    rgb_publisher = rospy.Publisher("rgb_image", Image, queue_size=10)
+    depth_publisher = rospy.Publisher("depth_image", RosImage, queue_size=10)
+    rgb_publisher = rospy.Publisher("rgb_image", RosImage, queue_size=10)
     camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, queue_size=10)
     tf_broadcaster = tf2_ros.TransformBroadcaster()
 
