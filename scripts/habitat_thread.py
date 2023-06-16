@@ -13,7 +13,7 @@ import cv2
 
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
-from transformations import publish_transforms, publish_noisy_odom_transform, publish_map_odom_transform
+from transformations import publish_noisy_odom_transform, publish_map_odom_transform, publish_base_link_to_scan_transform
 
 def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     with read_write(agent_config):
@@ -86,6 +86,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         # publish_transfonrms(env.sim.get_agent_state(), tf_broadcaster)
         publish_map_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
         publish_noisy_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
+        publish_base_link_to_scan_transform(tf_broadcaster)
         # Print the current position and rotation
         agent_state = env.sim.get_agent_state()
 

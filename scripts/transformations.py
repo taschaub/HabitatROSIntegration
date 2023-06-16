@@ -85,3 +85,29 @@ def publish_map_odom_transform(agent_state, tf_broadcaster, noise_std_dev=0.1):
 
     # Publish the transform
     tf_broadcaster.sendTransform(transform)
+    
+def publish_base_link_to_scan_transform(tf_broadcaster):
+    transform = geometry_msgs.msg.TransformStamped()
+
+    # Set the frame IDs
+    transform.header.frame_id = "base_link"
+    transform.child_frame_id = "scan"
+
+    # Set the translation (this depends on where the scanner is mounted on the robot)
+    transform.transform.translation.x = 0.0  # distance forward from the base_link
+    transform.transform.translation.y = 0.0  # distance left from the base_link
+    transform.transform.translation.z = 0.0  # height above the base_link
+
+    # Set the rotation (this depends on the orientation of the scanner)
+    quaternion = tf.transformations.quaternion_from_euler(0, 0, 0)  # no rotation
+    transform.transform.rotation.x = quaternion[0]
+    transform.transform.rotation.y = quaternion[1]
+    transform.transform.rotation.z = quaternion[2]
+    transform.transform.rotation.w = quaternion[3]
+
+    # Set the timestamp
+    transform.header.stamp = rospy.Time.now()
+
+    # Publish the transform
+    tf_broadcaster.sendTransform(transform)
+
