@@ -16,14 +16,15 @@ import cv2
 from habitat.utils.visualizations import maps
 
 #overwrite Image to avoid confusion with PilImage
-from sensor_msgs.msg import Image as RosImage, CameraInfo
+from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
 from cv_bridge import CvBridge
-
 import geometry_msgs.msg
 import tf2_ros
 import tf
-
 from map_server import MapServer
+
+from utils import convert_to_laserscan
+
 
 #from PIL import Image
 #Image also in sensor.msg
@@ -34,13 +35,15 @@ import yaml
 
 def display_top_down_map(env):
     agent_state = env.sim.get_agent_state()
-    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.2, height=0.5)
+    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.05, height=0.5)
     top_down_map = maps.colorize_topdown_map(top_down_map)
 
     # Draw the agent's position and orientation on the map
     agent_pos = agent_state.position
     agent_rot = agent_state.rotation
-    agent_angle = -2 * math.atan2(agent_rot.w, agent_rot.y)  # Get agent's yaw (rotation around the Z-axis)
+    
+    # Get agent's yaw (rotation around the Z-axis) and convert to (-pi, pi)
+    agent_angle = -2 * math.atan2(agent_rot.w, agent_rot.y)  
 
     # Convert the agent position to integer values
     grid_resolution = 0.05
@@ -72,8 +75,6 @@ def display_top_down_map(env):
 
     save_image_and_yaml(top_down_map, 'test_map.pgm', 'test_map.yaml')
 
-    
-    
 def save_image_and_yaml(top_down_map, pgm_filename, yaml_filename, resolution=0.05, origin=[0.0, 0.0, 0.0]):
     image = PilImage.fromarray(top_down_map)
     image.save(pgm_filename)
@@ -101,17 +102,30 @@ def publish_rgb_image(observations, rgb_image_publisher):
     # Publish the RGB image
     rgb_image_publisher.publish(rgb_image_msg)
 
-def publish_depth_image(observations, depth_image_publisher):
+def publish_depth_image_and_camera_info(env, observations, depth_image_publisher, camera_info_publisher):
+    # Your code for generating the depth image goes here
+    # ...
+    timestamp = rospy.Time.now()
+    publish_depth_image(observations, depth_image_publisher, timestamp)
+    publish_camera_info(env, camera_info_publisher, timestamp)
+
+
+def publish_depth_image(observations, depth_image_publisher, timestamp):
     bridge = CvBridge()
 
     # Convert depth data to a format suitable for saving as an image
-    depth_data = (observations["depth"] * 255).astype(np.uint8)
-    depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="mono8")
+    #depth_data = (observations["depth"] * 255).astype(np.uint8)
+    #depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="mono8")
 
+    # Keep depth data as floating point values representing distance in meters
+    depth_data = observations["depth"].astype(np.float32)
+    depth_data*=10
+    depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="32FC1")
     # Publish the depth image
+    depth_image_msg.header.stamp = timestamp
     depth_image_publisher.publish(depth_image_msg)
 
-def publish_camera_info(env, camera_info_publisher):
+def publish_camera_info(env, camera_info_publisher, timestamp):
     camera_config = env._sim._sensor_suite.sensors["rgb"].config
 
     # Calculate the vertical field of view (vfov) using the aspect ratio and hfov
@@ -127,7 +141,7 @@ def publish_camera_info(env, camera_info_publisher):
     camera_matrix = [fx, 0, cx, 0, fy, cy, 0, 0, 1]
 
     camera_info = CameraInfo()
-    camera_info.header.stamp = rospy.Time.now()
+    camera_info.header.stamp = timestamp
     camera_info.header.frame_id = "camera_link"
     camera_info.width = camera_config.width
     camera_info.height = camera_config.height
@@ -138,7 +152,6 @@ def publish_camera_info(env, camera_info_publisher):
     camera_info.P = [fx, 0, cx, 0, 0, fy, cy, 0, 0, 0, 1, 0]  # Projection matrix
 
     camera_info_publisher.publish(camera_info)
-
 
 def publish_transforms(agent_state, tf_broadcaster):
     transform = geometry_msgs.msg.TransformStamped()
@@ -223,6 +236,21 @@ def publish_map_odom_transform(agent_state, tf_broadcaster, noise_std_dev=0.1):
     # Publish the transform
     tf_broadcaster.sendTransform(transform)
 
+import matplotlib
+matplotlib.use('Agg')  # use a non-GUI backend
+import matplotlib.pyplot as plt
+
+
+def visualize_pointcloud(xyz_camera):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(xyz_camera[:, 0], xyz_camera[:, 1], xyz_camera[:, 2])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.view_init(elev=30, azim=60)  # Set the elevation and azimuth angles
+
+    plt.savefig('pointcloud.png')  # save figure to file
 
 def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     with read_write(agent_config):
@@ -254,7 +282,13 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         display_top_down_map(env)
         
         depth_data = observations["depth"]
-        ego_map_image = ego_map.get_observation(depth_data)  # Generate the occupancy map here
+        ego_map_image = ego_map.get_observation(depth_data)# Generate the occupancy map here
+        # pointcloud = ego_map.convert_to_pointcloud(depth_data)
+        #visualize_pointcloud(pointcloud)
+        #laserscan = convert_to_laserscan(pointcloud)
+        
+        # if laserscan is not None:
+        #     scan_publisher.publish(laserscan)
         
         #convert ego map image to have correct number of channels
         explored_map = ego_map_image[:, :, 0] * 255 # maybe switched?
@@ -284,8 +318,8 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
 
         # Publish the rgb and depth images
         publish_rgb_image(observations, rgb_publisher)
-        publish_depth_image(observations, depth_publisher)
-        publish_camera_info(env, camera_info_publisher)
+        
+        publish_depth_image_and_camera_info(env, observations, depth_publisher, camera_info_publisher)
         # publish_transfonrms(env.sim.get_agent_state(), tf_broadcaster)
         publish_map_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
         publish_noisy_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
@@ -337,6 +371,8 @@ def main():
     depth_publisher = rospy.Publisher("depth_image", RosImage, queue_size=10)
     rgb_publisher = rospy.Publisher("rgb_image", RosImage, queue_size=10)
     camera_info_publisher = rospy.Publisher("camera_info", CameraInfo, queue_size=10)
+    # scan_pub = rospy.Publisher('scan', LaserScan, queue_size=10)
+
     tf_broadcaster = tf2_ros.TransformBroadcaster()
 
               
