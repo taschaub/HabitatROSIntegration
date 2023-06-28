@@ -13,7 +13,7 @@ import cv2
 
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
-from transformations import publish_noisy_odom_transform, publish_map_odom_transform, publish_base_link_to_scan_transform
+from transformations import publish_odom_baselink_transform, publish_map_odom_transform, publish_base_link_to_scan_transform, publish_origin_to_map_transform
 
 def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     with read_write(agent_config):
@@ -38,7 +38,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
     ego_map = GTEgoMap(depth_H=depth_height, depth_W=depth_width)
     
     # Create an instance of the MapServer class
-    map_server = MapServer()
+    # map_server = MapServer()
 
     while not rospy.is_shutdown():
 
@@ -66,27 +66,29 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         published_map = (ego_map_image[:, :, 0] - 0.5) * 2 * 127
         published_map = published_map.astype(np.int8)
 
-        map_server.update_map_data(published_map)
-        map_server.publish_map()
+        # map_server.update_map_data(published_map)
+        # map_server.publish_map()
         
         #create a map server and publish the map in an ros topic
         # map_server = MapServer(obstacle_map)
         # map_server.publish_map()
         
-
-
         #cv2.imwrite('ego_map_image.png', rgb_image)
         # Save the occupancy map as an image file
         #cv2.imwrite('ego_map_image.png', ego_map_image * 255)
 
+        #get current time
+        current_time = rospy.Time.now()
+        
         # Publish the rgb and depth images
         publish_rgb_image(observations, rgb_publisher)
         
         publish_depth_image_and_camera_info(env, observations, depth_publisher, camera_info_publisher)
         # publish_transfonrms(env.sim.get_agent_state(), tf_broadcaster)
-        publish_map_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
-        publish_noisy_odom_transform(env.sim.get_agent_state(), tf_broadcaster)
-        publish_base_link_to_scan_transform(tf_broadcaster)
+        publish_map_odom_transform(env, tf_broadcaster, current_time)
+        publish_odom_baselink_transform(env.sim.get_agent_state(), tf_broadcaster,current_time)
+        publish_base_link_to_scan_transform(tf_broadcaster,current_time)
+        publish_origin_to_map_transform(tf_broadcaster,current_time)
         # Print the current position and rotation
         agent_state = env.sim.get_agent_state()
 
