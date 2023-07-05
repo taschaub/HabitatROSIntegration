@@ -12,7 +12,7 @@ class LaserScanFixer:
 
     def callback(self, data):
         # Reverse the order of the range measurements
-        data.ranges = list(reversed(data.ranges))
+        #data.ranges = list(reversed(data.ranges))
 
         # Change 'nan' to 'inf'
         data.ranges = [float('inf') if np.isnan(x) else x for x in data.ranges]
