@@ -3,6 +3,11 @@
 import habitat_sim
 import os
 import numpy as np
+from publishers import publish_rgb_image, publish_depth_image_and_camera_info
+from map import display_top_down_map
+import cv2
+
+
 
 def make_configuration():
     # simulator configuration
@@ -63,7 +68,7 @@ def apply_cmd_vel(agent, cmd_vel, dt):
 
     # integrate the angular velocity to get the change in orientation
     da = angular_velocity * dt
-    state.rotation *= np.quaternion(np.cos(da / 2), 0, 0, np.sin(da / 2))
+    state.rotation *= np.quaternion(np.cos(da / 2), 0, np.sin(da / 2),0)
 
     # set the agent's state
     agent.set_state(state, reset_sensors=False)
@@ -74,20 +79,35 @@ def get_rgb_and_depth_images(sim):
     depth_img = observations["depth_camera"]
     return rgb_img, depth_img
 
+def print_screen(rgb_image, depth_data):
+    # depth_data = sim.get_sensor_observations("depth")
+
+    # Convert depth data to a format suitable for saving as an image
+    depth_image = (depth_data * 8).astype(np.uint8)
+
+    # Save the depth image to a file
+    cv2.imwrite("depth_image.png", depth_image)
+    cv2.imwrite('ego_map_image.png', rgb_image)
+
+    # Display the depth image
+    #cv2.imshow("Depth Image", depth_image)
+    cv2.waitKey(1)
+
 
 
 cmd_vel = [1.2, 2.5]
+while 1:
+    for _ in range(10):
+        apply_cmd_vel(agent, cmd_vel, dt=1/60)  # assuming the simulator runs at 60Hz
+        sim.step_physics(1/60)
 
-for _ in range(10):
-    apply_cmd_vel(agent, cmd_vel, dt=1/60)  # assuming the simulator runs at 60Hz
-    sim.step_physics(1/60)
+        # get the sensor observations for the current step
+        observations = sim.get_sensor_observations()
 
-    # get the sensor observations for the current step
-    observations = sim.get_sensor_observations()
-
-    # get the RGB and depth images
-    rgb_img = observations["rgba_camera"]
-    depth_img = observations["depth_camera"]
-
-    # process the images or publish them to ROS...
-    # ...
+        # get the RGB and depth images
+        rgb_img = observations["rgba_camera"]
+        depth_img = observations["depth_camera"]
+        display_top_down_map(sim)
+        print_screen(rgb_img,depth_img)
+        # process the images or publish them to ROS...
+        # ...

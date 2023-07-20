@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import habitat
+import habitat_sim
 from queue import Queue
 import rospy
 from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
@@ -14,7 +15,7 @@ from publish_test.msg import BasicAction
 def main():
     topic = "chatter"
     scene = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
-    agent_config = habitat.get_config(config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml")
+    agent_config = habitat_sim.Simulator() .get_config(config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml")
 
     action_queue = Queue()
 

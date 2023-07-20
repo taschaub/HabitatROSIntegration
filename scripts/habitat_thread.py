@@ -1,5 +1,6 @@
 from habitat.config.read_write import read_write
 import habitat
+import habitat_sim
 from gtego_map import GTEgoMap
 from map_server import MapServer
 
@@ -20,7 +21,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         agent_config.habitat.simulator.scene = scene
     print(agent_config.habitat.simulator.scene)
 
-    env = habitat.Env(agent_config)
+    env = habitat_sim.Env(agent_config)
     observations = env.reset()
 
     # Create a dictionary to map action indices to action names

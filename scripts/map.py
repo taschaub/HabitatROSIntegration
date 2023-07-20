@@ -5,9 +5,12 @@ from PIL import Image as PilImage
 from habitat.utils.visualizations import maps
 import yaml
 
-def display_top_down_map(env):
-    agent_state = env.sim.get_agent_state()
-    top_down_map = maps.get_topdown_map(env.sim.pathfinder, meters_per_pixel=0.05, height=0.5)
+def display_top_down_map(sim):
+    
+    # agent_state = sim.get_agent_state()
+    agent = sim.get_agent(0)
+    agent_state = agent.state
+    top_down_map = maps.get_topdown_map(sim.pathfinder, meters_per_pixel=0.05, height=0.5)
     top_down_map = maps.colorize_topdown_map(top_down_map)
 
     # Draw the agent's position and orientation on the map
@@ -19,7 +22,7 @@ def display_top_down_map(env):
 
     # Convert the agent position to integer values
     grid_resolution = 0.05
-    bounds = env.sim.pathfinder.get_bounds()
+    bounds = sim.pathfinder.get_bounds()
     lower_bounds = bounds[0][[0, 2]]
     upper_bounds = bounds[1][[0, 2]]
 
