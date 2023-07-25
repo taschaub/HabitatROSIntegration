@@ -181,6 +181,21 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
                 last_velocity_set = 0
                 vel_control.linear_velocity = [0.0, 0.0, 1.0]
                 
+            if action_name == "print screen":
+                # Access the depth sensor data
+                depth_data = observations["depth"]
+
+                # Convert depth data to a format suitable for saving as an image
+                depth_image = (depth_data * 255).astype(np.uint8)
+
+                # Save the depth image to a file
+                cv2.imwrite("depth_image.png", depth_image)
+                # cv2.imwrite('ego_map_image.png', rgb_image)
+
+                # Display the depth image
+                #cv2.imshow("Depth Image", depth_image)
+                cv2.waitKey(1)
+                
         
         
 
