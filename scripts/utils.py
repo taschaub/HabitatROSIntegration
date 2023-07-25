@@ -1,6 +1,8 @@
 import rospy
 import numpy as np
 from sensor_msgs.msg import LaserScan
+import cv2
+import habitat_sim
 
 
 
@@ -41,3 +43,104 @@ def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angl
     scan_msg.intensities = [1.0] * num_measurements  # Optional
 
     return scan_msg
+
+def make_configuration():
+    # simulator configuration
+    backend_cfg = habitat_sim.SimulatorConfiguration()
+    backend_cfg.scene_id = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+    backend_cfg.enable_physics = True
+
+    # sensor configurations
+    sensor_specs = []
+
+    rgba_camera_spec = habitat_sim.CameraSensorSpec()
+    rgba_camera_spec.uuid = "camera"
+    rgba_camera_spec.sensor_type = habitat_sim.SensorType.COLOR
+    rgba_camera_spec.resolution = [480, 640]
+    rgba_camera_spec.position = [0.0, 0.6, 0.0]
+    rgba_camera_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
+    sensor_specs.append(rgba_camera_spec)
+
+    depth_camera_spec = habitat_sim.CameraSensorSpec()
+    depth_camera_spec.uuid = "depth"
+    depth_camera_spec.sensor_type = habitat_sim.SensorType.DEPTH
+    depth_camera_spec.resolution = [480, 640]
+    depth_camera_spec.position = [0.0, 0.6, 0.0]
+    depth_camera_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
+    sensor_specs.append(depth_camera_spec)
+
+    # agent configuration
+    agent_cfg = habitat_sim.agent.AgentConfiguration()
+    agent_cfg.sensor_specifications = sensor_specs
+
+    return habitat_sim.Configuration(backend_cfg, [agent_cfg])
+
+def apply_cmd_vel(agent, cmd_vel, dt):
+    # cmd_vel should be a tuple or list like (linear_velocity, angular_velocity)
+    linear_velocity, angular_velocity = cmd_vel
+
+    # get the agent's current state
+    state = agent.get_state()
+
+    # integrate the linear velocity to get the change in position
+    dp = linear_velocity * dt
+    state.position += dp
+
+    # integrate the angular velocity to get the change in orientation
+    da = angular_velocity * dt
+    state.rotation *= np.quaternion(np.cos(da / 2), 0, np.sin(da / 2),0)
+
+    # set the agent's state
+    agent.set_state(state, reset_sensors=False)
+    
+def get_rgb_and_depth_images(sim):
+    observations = sim.get_sensor_observations()
+    rgb_img = observations["rgba_camera"]
+    depth_img = observations["depth_camera"]
+    return rgb_img, depth_img
+
+def print_screen(rgb_image, depth_data):
+    # depth_data = sim.get_sensor_observations("depth")
+
+    # Convert depth data to a format suitable for saving as an image
+    depth_image = (depth_data * 8).astype(np.uint8)
+
+    # Save the depth image to a file
+    cv2.imwrite("depth_image.png", depth_image)
+    cv2.imwrite('ego_map_image.png', rgb_image)
+
+    # Display the depth image
+    #cv2.imshow("Depth Image", depth_image)
+    cv2.waitKey(1)
+    
+def place_agent(sim):
+    # place our agent in the scene
+    agent_state = habitat_sim.AgentState()
+    agent_state.position = [-0.15, -0.7, 1.0]
+    agent_state.rotation = np.quaternion(-0.83147, 0, 0.55557, 0)
+    agent = sim.initialize_agent(0, agent_state)
+    return agent
+
+def init_locobot(sim, obj_templates_mgr, rigid_obj_mgr):
+    locobot_template_id = obj_templates_mgr.load_configs(
+        "/home/aaron/rosxhab/habitat-sim/data/objects/locobot_merged"
+    )[0]
+    # add robot object to the scene with the agent/camera SceneNode attached
+    locobot = rigid_obj_mgr.add_object_by_template_id(
+        locobot_template_id, sim.agents[0].scene_node
+    )
+    initial_rotation = locobot.rotation
+
+    # set the agent's body to kinematic since we will be updating position manually
+    locobot.motion_type = habitat_sim.physics.MotionType.KINEMATIC
+
+    # create and configure a new VelocityControl structure
+    # Note: this is NOT the object's VelocityControl, so it will not be consumed automatically in sim.step_physics
+    vel_control = habitat_sim.physics.VelocityControl()
+    vel_control.controlling_lin_vel = True
+    vel_control.lin_vel_is_local = True
+    vel_control.controlling_ang_vel = True
+    vel_control.ang_vel_is_local = True
+    vel_control.linear_velocity = [0.0, 0.0, -1.0]
+    
+    return locobot , vel_control

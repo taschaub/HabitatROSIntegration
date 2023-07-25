@@ -7,7 +7,8 @@ import rospy
 from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
 import tf2_ros
 from threading import Thread
-from habitat_thread import habitat_thread
+from habitat_sim_thread import habitat_sim_thread
+
 
 from publish_test.msg import BasicAction
 
@@ -15,7 +16,7 @@ from publish_test.msg import BasicAction
 def main():
     topic = "chatter"
     scene = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
-    agent_config = habitat_sim.Simulator() .get_config(config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml")
+    agent_config = 0 # habitat.Simulator() .get_config(config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml")
 
     action_queue = Queue()
 
@@ -29,7 +30,7 @@ def main():
     tf_broadcaster = tf2_ros.TransformBroadcaster()
 
               
-    ht = Thread(target=habitat_thread, args=(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster))
+    ht = Thread(target=habitat_sim_thread, args=(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster))
     ht.start()
 
     def callback(data):

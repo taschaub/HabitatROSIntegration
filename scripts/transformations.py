@@ -69,13 +69,13 @@ def publish_odom_baselink_transform(agent_state, tf_broadcaster, current_time,no
     # Publish the transform
     tf_broadcaster.sendTransform(transform)
 
-def publish_map_odom_transform(env, tf_broadcaster, current_time, noise_std_dev=0.1):
+def publish_map_odom_transform(sim, tf_broadcaster, current_time, noise_std_dev=0.1):
     transform = geometry_msgs.msg.TransformStamped()
 
     # Set the frame IDs
     transform.header.frame_id = "map"
     transform.child_frame_id = "odom"
-    bounds = env.sim.pathfinder.get_bounds()
+    bounds = sim.pathfinder.get_bounds()
         
     pos =[-bounds[0][0],bounds[1][2],0] #lowerbound x , upper y
 

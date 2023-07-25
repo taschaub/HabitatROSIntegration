@@ -8,18 +8,18 @@ def publish_rgb_image(observations, rgb_image_publisher):
     bridge = CvBridge()
 
     # Convert RGB data to a format suitable for saving as an image
-    rgb_data = observations["rgb"]
+    rgb_data = observations["camera"]
     rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data, encoding="bgr8")
 
     # Publish the RGB image
     rgb_image_publisher.publish(rgb_image_msg)
 
-def publish_depth_image_and_camera_info(env, observations, depth_image_publisher, camera_info_publisher):
+def publish_depth_image_and_camera_info(sim, observations, depth_image_publisher, camera_info_publisher):
     # Your code for generating the depth image goes here
     # ...
     timestamp = rospy.Time.now()
     publish_depth_image(observations, depth_image_publisher, timestamp)
-    publish_camera_info(env, camera_info_publisher, timestamp)
+    publish_camera_info(sim, camera_info_publisher, timestamp)
     
 def publish_depth_image(observations, depth_image_publisher, timestamp):
     bridge = CvBridge()
@@ -36,8 +36,12 @@ def publish_depth_image(observations, depth_image_publisher, timestamp):
     depth_image_msg.header.stamp = timestamp
     depth_image_publisher.publish(depth_image_msg)
 
-def publish_camera_info(env, camera_info_publisher, timestamp):
-    camera_config = env._sim._sensor_suite.sensors["rgb"].config
+def publish_camera_info(sim, camera_info_publisher, timestamp):
+    
+    #TODO adjust to habitat im
+    camera_config = sim._sensors["camera"]._spec
+    camera_config.width = 640
+    camera_config.height = 480
 
     # Calculate the vertical field of view (vfov) using the aspect ratio and hfov
     aspect_ratio = float(camera_config.width) / float(camera_config.height)
