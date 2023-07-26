@@ -5,7 +5,6 @@ import cv2
 import habitat_sim
 
 
-
 def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angle_min=-np.pi, angle_max=np.pi, range_min=0.0, range_max=10.0):
     """
     Convert a depth image to a simulated LaserScan message.
@@ -15,14 +14,15 @@ def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angl
     # Filter the point cloud to include only points within the desired height range.
     min_height = scan_height - height_tolerance
     max_height = scan_height + height_tolerance
-    points_in_range = np.logical_and(xyz_camera[:, 1] > min_height, xyz_camera[:, 1] < max_height)
+    points_in_range = np.logical_and(
+        xyz_camera[:, 1] > min_height, xyz_camera[:, 1] < max_height)
     xyz_camera = xyz_camera[points_in_range]
-    
-     # Check if there are any points left after filtering.
-    if xyz_camera.size == 0:
-        rospy.logwarn("No points in point cloud within specified height range.")
-        return None
 
+    # Check if there are any points left after filtering.
+    if xyz_camera.size == 0:
+        rospy.logwarn(
+            "No points in point cloud within specified height range.")
+        return None
 
     # Convert point cloud to polar coordinates.
     ranges = np.sqrt(xyz_camera[:, 0]**2 + xyz_camera[:, 2]**2)
@@ -43,6 +43,7 @@ def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angl
     scan_msg.intensities = [1.0] * num_measurements  # Optional
 
     return scan_msg
+
 
 def make_configuration():
     # simulator configuration
@@ -75,6 +76,7 @@ def make_configuration():
 
     return habitat_sim.Configuration(backend_cfg, [agent_cfg])
 
+
 def apply_cmd_vel(agent, cmd_vel, dt):
     # cmd_vel should be a tuple or list like (linear_velocity, angular_velocity)
     linear_velocity, angular_velocity = cmd_vel
@@ -88,16 +90,18 @@ def apply_cmd_vel(agent, cmd_vel, dt):
 
     # integrate the angular velocity to get the change in orientation
     da = angular_velocity * dt
-    state.rotation *= np.quaternion(np.cos(da / 2), 0, np.sin(da / 2),0)
+    state.rotation *= np.quaternion(np.cos(da / 2), 0, np.sin(da / 2), 0)
 
     # set the agent's state
     agent.set_state(state, reset_sensors=False)
-    
+
+
 def get_rgb_and_depth_images(sim):
     observations = sim.get_sensor_observations()
     rgb_img = observations["rgba_camera"]
     depth_img = observations["depth_camera"]
     return rgb_img, depth_img
+
 
 def print_screen(rgb_image, depth_data):
     # depth_data = sim.get_sensor_observations("depth")
@@ -110,9 +114,10 @@ def print_screen(rgb_image, depth_data):
     cv2.imwrite('ego_map_image.png', rgb_image)
 
     # Display the depth image
-    #cv2.imshow("Depth Image", depth_image)
+    # cv2.imshow("Depth Image", depth_image)
     cv2.waitKey(1)
-    
+
+
 def place_agent(sim):
     # place our agent in the scene
     agent_state = habitat_sim.AgentState()
@@ -120,6 +125,7 @@ def place_agent(sim):
     agent_state.rotation = np.quaternion(-0.83147, 0, 0.55557, 0)
     agent = sim.initialize_agent(0, agent_state)
     return agent
+
 
 def init_locobot(sim, obj_templates_mgr, rigid_obj_mgr):
     locobot_template_id = obj_templates_mgr.load_configs(
@@ -141,9 +147,10 @@ def init_locobot(sim, obj_templates_mgr, rigid_obj_mgr):
     vel_control.lin_vel_is_local = True
     vel_control.controlling_ang_vel = True
     vel_control.ang_vel_is_local = True
-    vel_control.linear_velocity = [0.0, 0.0, -1.0]
-    
-    return locobot , vel_control
+    vel_control.linear_velocity = [0.0, 0.0, 0.0]
+
+    return locobot, vel_control
+
 
 def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
     if action_name == "move_forward":
@@ -165,7 +172,8 @@ def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
         dist_moved_before_filter = (
             target_rigid_state.translation - previous_rigid_state.translation
         ).dot()
-        dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
+        dist_moved_after_filter = (
+            end_pos - previous_rigid_state.translation).dot()
 
         # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
         # collision _didn't_ happen. One such case is going up stairs.  Instead,
@@ -177,43 +185,42 @@ def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
         # run any dynamics simulation
         sim.step_physics(time_step)
         observations = sim.get_sensor_observations()
-        
+
     if action_name == "turn left":
         vel_control.angular_velocity = [0.0, 2.0, 0.0]
-        
+
         previous_rigid_state = locobot.rigid_state
 
         # manually integrate the rigid state
         target_rigid_state = vel_control.integrate_transform(
             time_step, previous_rigid_state
         )
-        
-        sim.step_physics(time_step)
-        observations = sim.get_sensor_observations()   
-    
-    if action_name == "turn right":
-        vel_control.angular_velocity = [0.0, -2.0, 0.0]
-        
-        previous_rigid_state = locobot.rigid_state
 
-        # manually integrate the rigid state
-        target_rigid_state = vel_control.integrate_transform(
-            time_step, previous_rigid_state
-        )
-        
         sim.step_physics(time_step)
         observations = sim.get_sensor_observations()
-    
+
+    if action_name == "turn right":
+        vel_control.angular_velocity = [0.0, -2.0, 0.0]
+
+        previous_rigid_state = locobot.rigid_state
+
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()
+
     if action_name == "stop":
         last_velocity_set = 0
         vel_control.linear_velocity = [0.0, 0.0, 1.0]
-        
+
     if action_name == "print screen":
         # Access the depth sensor data
         depth_data = observations["depth"]
-        
+
         max_val = depth_data.max()
-        
 
         # Convert depth data to a format suitable for saving as an image
         depth_image = ((depth_data/max_val)*255).astype(np.uint8)
@@ -223,5 +230,5 @@ def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
         # cv2.imwrite('ego_map_image.png', rgb_image)
 
         # Display the depth image
-        #cv2.imshow("Depth Image", depth_image)
+        # cv2.imshow("Depth Image", depth_image)
         cv2.waitKey(1)
