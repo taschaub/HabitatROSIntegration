@@ -56,7 +56,7 @@ def make_configuration():
     rgba_camera_spec = habitat_sim.CameraSensorSpec()
     rgba_camera_spec.uuid = "camera"
     rgba_camera_spec.sensor_type = habitat_sim.SensorType.COLOR
-    rgba_camera_spec.resolution = [480, 640]
+    rgba_camera_spec.resolution = [480, 480]
     rgba_camera_spec.position = [0.0, 0.6, 0.0]
     rgba_camera_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
     sensor_specs.append(rgba_camera_spec)
@@ -64,7 +64,7 @@ def make_configuration():
     depth_camera_spec = habitat_sim.CameraSensorSpec()
     depth_camera_spec.uuid = "depth"
     depth_camera_spec.sensor_type = habitat_sim.SensorType.DEPTH
-    depth_camera_spec.resolution = [480, 640]
+    depth_camera_spec.resolution = [480, 480]
     depth_camera_spec.position = [0.0, 0.6, 0.0]
     depth_camera_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
     sensor_specs.append(depth_camera_spec)

@@ -4,6 +4,7 @@ import numpy as np
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
 
+
 def publish_rgb_image(observations, rgb_image_publisher):
     bridge = CvBridge()
 
@@ -30,7 +31,9 @@ def publish_depth_image(observations, depth_image_publisher, timestamp):
 
     # Keep depth data as floating point values representing distance in meters
     depth_data = observations["depth"].astype(np.float32)
-    depth_data*=10
+    # max_val =depth_data.max()
+    # depth_data/=16.3
+    # depth_data*=15
     depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="32FC1")
     # Publish the depth image
     depth_image_msg.header.stamp = timestamp
@@ -40,7 +43,7 @@ def publish_camera_info(sim, camera_info_publisher, timestamp):
     
     #TODO adjust to habitat im
     camera_config = sim._sensors["camera"]._spec
-    camera_config.width = 640
+    camera_config.width = 480
     camera_config.height = 480
 
     # Calculate the vertical field of view (vfov) using the aspect ratio and hfov

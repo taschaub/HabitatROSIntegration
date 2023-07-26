@@ -108,7 +108,7 @@ def publish_base_link_to_scan_transform(tf_broadcaster, current_time):
     transform.child_frame_id = "scan"
 
     # Set the translation (this depends on where the scanner is mounted on the robot)
-    transform.transform.translation.x = 0.0  # distance forward from the base_link
+    transform.transform.translation.x = -0.2  # distance forward from the base_link
     transform.transform.translation.y = 0.0  # distance left from the base_link
     transform.transform.translation.z = 0.0  # height above the base_link
 

@@ -21,7 +21,7 @@ def habitat_thread(agent_config, scene, action_queue, depth_publisher, rgb_publi
         agent_config.habitat.simulator.scene = scene
     print(agent_config.habitat.simulator.scene)
 
-    env = habitat_sim.Env(agent_config)
+    env = habitat.Env(agent_config)
     observations = env.reset()
 
     # Create a dictionary to map action indices to action names

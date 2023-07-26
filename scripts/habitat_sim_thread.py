@@ -17,7 +17,7 @@ from publishers import publish_rgb_image, publish_depth_image_and_camera_info
 from transformations import publish_odom_baselink_transform, publish_map_odom_transform, publish_base_link_to_scan_transform, publish_origin_to_map_transform
 from utils import make_configuration, init_locobot, print_screen, apply_cmd_vel
 
-
+factor_img = 0.1
 
 def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     cfg = make_configuration()
@@ -54,7 +54,7 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
     observations = sim.get_sensor_observations()
 
     # Create an instance of the GTEgoMap class
-    depth_height = 640
+    depth_height = 480
     depth_width = 480
     ego_map = GTEgoMap(depth_H=depth_height, depth_W=depth_width)
     
@@ -121,7 +121,7 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
             action_name = action_mapping.get(action_idx, None)
             if action_name == "move_forward":
                 previous_rigid_state = locobot.rigid_state
-                vel_control.linear_velocity = [0.0, 0.0, 1.0]
+                vel_control.linear_velocity = [0.0, 0.0, -1.0]
 
                 # manually integrate the rigid state
                 target_rigid_state = vel_control.integrate_transform(
@@ -150,6 +150,7 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
 
                 # run any dynamics simulation
                 sim.step_physics(time_step)
+                observations = sim.get_sensor_observations()
                 
             if action_name == "turn left":
                 vel_control.angular_velocity = [0.0, 2.0, 0.0]
@@ -162,6 +163,7 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
                 )
                 
                 sim.step_physics(time_step)
+                observations = sim.get_sensor_observations()   
 
 
                 
@@ -176,6 +178,7 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
                 )
                 
                 sim.step_physics(time_step)
+                observations = sim.get_sensor_observations()
             
             if action_name == "stop":
                 last_velocity_set = 0
@@ -184,9 +187,12 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
             if action_name == "print screen":
                 # Access the depth sensor data
                 depth_data = observations["depth"]
+                
+                max_val = depth_data.max()
+                
 
                 # Convert depth data to a format suitable for saving as an image
-                depth_image = (depth_data * 255).astype(np.uint8)
+                depth_image = ((depth_data/max_val)*255).astype(np.uint8)
 
                 # Save the depth image to a file
                 cv2.imwrite("depth_image.png", depth_image)
