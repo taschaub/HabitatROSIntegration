@@ -15,7 +15,7 @@ import cv2
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
 from transformations import publish_odom_baselink_transform, publish_map_odom_transform, publish_base_link_to_scan_transform, publish_origin_to_map_transform
-from utils import make_configuration, init_locobot, print_screen, apply_cmd_vel
+from utils import make_configuration, init_locobot, print_screen, apply_cmd_vel, discrete_vel_control
 
 factor_img = 0.1
 
@@ -115,96 +115,57 @@ def habitat_sim_thread(agent_config, scene, action_queue, depth_publisher, rgb_p
         agent_state = sim.agents[0].state
         
         if not action_queue.empty():
-            action_idx = action_queue.get()
-            print("Action index received:", action_idx)
+            cmd_vel_data = action_queue.get()
+            print("CMD_VEL received:", cmd_vel_data)
             
-            action_name = action_mapping.get(action_idx, None)
-            if action_name == "move_forward":
-                previous_rigid_state = locobot.rigid_state
-                vel_control.linear_velocity = [0.0, 0.0, -1.0]
-
-                # manually integrate the rigid state
-                target_rigid_state = vel_control.integrate_transform(
-                    time_step, previous_rigid_state
-                )
-
-                # snap rigid state to navmesh and set state to object/agent
-                end_pos = sim.step_filter(
-                    previous_rigid_state.translation, target_rigid_state.translation
-                )
-                locobot.translation = end_pos
-                locobot.rotation = target_rigid_state.rotation
-
-                # Check if a collision occured
-                dist_moved_before_filter = (
-                    target_rigid_state.translation - previous_rigid_state.translation
-                ).dot()
-                dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
-
-                # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
-                # collision _didn't_ happen. One such case is going up stairs.  Instead,
-                # we check to see if the the amount moved after the application of the filter
-                # is _less_ than the amount moved before the application of the filter
-                EPS = 1e-5
-                collided = (dist_moved_after_filter + EPS) < dist_moved_before_filter
-
-                # run any dynamics simulation
-                sim.step_physics(time_step)
-                observations = sim.get_sensor_observations()
-                
-            if action_name == "turn left":
-                vel_control.angular_velocity = [0.0, 2.0, 0.0]
-                
-                previous_rigid_state = locobot.rigid_state
-
-                # manually integrate the rigid state
-                target_rigid_state = vel_control.integrate_transform(
-                    time_step, previous_rigid_state
-                )
-                
-                sim.step_physics(time_step)
-                observations = sim.get_sensor_observations()   
-
-
-                
-            if action_name == "turn right":
-                vel_control.angular_velocity = [0.0, -2.0, 0.0]
-                
-                previous_rigid_state = locobot.rigid_state
-
-                # manually integrate the rigid state
-                target_rigid_state = vel_control.integrate_transform(
-                    time_step, previous_rigid_state
-                )
-                
-                sim.step_physics(time_step)
-                observations = sim.get_sensor_observations()
+            # action_name = action_mapping.get(action_idx, None)
+            # discrete_vel_control(sim, action_name, vel_control, locobot, time_step)
             
-            if action_name == "stop":
-                last_velocity_set = 0
-                vel_control.linear_velocity = [0.0, 0.0, 1.0]
-                
-            if action_name == "print screen":
-                # Access the depth sensor data
-                depth_data = observations["depth"]
-                
-                max_val = depth_data.max()
-                
+            
+            linear_velocity_x = cmd_vel_data.linear.x  # forward motion
+            linear_velocity_y = cmd_vel_data.linear.y  # sideways motion
+            angular_velocity = cmd_vel_data.angular.z  # rotation
 
-                # Convert depth data to a format suitable for saving as an image
-                depth_image = ((depth_data/max_val)*255).astype(np.uint8)
-
-                # Save the depth image to a file
-                cv2.imwrite("depth_image.png", depth_image)
-                # cv2.imwrite('ego_map_image.png', rgb_image)
-
-                # Display the depth image
-                #cv2.imshow("Depth Image", depth_image)
-                cv2.waitKey(1)
+            # Convert to Habitat coordinate system
+            habitat_linear_velocity_x = -linear_velocity_x
+            habitat_linear_velocity_y = -linear_velocity_y
+            habitat_angular_velocity = angular_velocity
                 
+            vel_control.linear_velocity = np.array([habitat_linear_velocity_y, 0, habitat_linear_velocity_x])
+            vel_control.angular_velocity = np.array([0, habitat_angular_velocity, 0])
         
-        
+            
+            previous_rigid_state = locobot.rigid_state
+            # vel_control.linear_velocity = [0.0, 0.0, -1.0]
+            # manually integrate the rigid state
+            target_rigid_state = vel_control.integrate_transform(
+                time_step, previous_rigid_state
+            )
 
-        
+            # snap rigid state to navmesh and set state to object/agent
+            end_pos = sim.step_filter(
+                previous_rigid_state.translation, target_rigid_state.translation
+            )
+            locobot.translation = end_pos
+            locobot.rotation = target_rigid_state.rotation
 
-    
+            # Check if a collision occured
+            dist_moved_before_filter = (
+                target_rigid_state.translation - previous_rigid_state.translation
+            ).dot()
+            dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
+
+            # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
+            # collision _didn't_ happen. One such case is going up stairs.  Instead,
+            # we check to see if the the amount moved after the application of the filter
+            # is _less_ than the amount moved before the application of the filter
+            EPS = 1e-5
+            collided = (dist_moved_after_filter + EPS) < dist_moved_before_filter
+
+            # run any dynamics simulation
+            sim.step_physics(time_step)
+            observations = sim.get_sensor_observations()
+            
+            #get rid of old messeages
+            action_queue.queue.clear()
+        

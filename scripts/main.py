@@ -8,13 +8,15 @@ from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
 import tf2_ros
 from threading import Thread
 from habitat_sim_thread import habitat_sim_thread
+from geometry_msgs.msg import Twist
+
 
 
 from publish_test.msg import BasicAction
 
 
 def main():
-    topic = "chatter"
+    topic = "cmd_vel"
     scene = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
     agent_config = 0 # habitat.Simulator() .get_config(config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml")
 
@@ -34,10 +36,10 @@ def main():
     ht.start()
 
     def callback(data):
-        print("Action received:", data.ActionIdx)
-        action_queue.put(data.ActionIdx)
+        print("Action received:", data)
+        action_queue.put(data)
 
-    rospy.Subscriber(topic, BasicAction, callback)
+    rospy.Subscriber(topic, Twist, callback)
     print("loaded")
     rospy.spin()
 

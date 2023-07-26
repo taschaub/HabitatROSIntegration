@@ -144,3 +144,84 @@ def init_locobot(sim, obj_templates_mgr, rigid_obj_mgr):
     vel_control.linear_velocity = [0.0, 0.0, -1.0]
     
     return locobot , vel_control
+
+def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
+    if action_name == "move_forward":
+        previous_rigid_state = locobot.rigid_state
+        vel_control.linear_velocity = [0.0, 0.0, -1.0]
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+
+        # snap rigid state to navmesh and set state to object/agent
+        end_pos = sim.step_filter(
+            previous_rigid_state.translation, target_rigid_state.translation
+        )
+        locobot.translation = end_pos
+        locobot.rotation = target_rigid_state.rotation
+
+        # Check if a collision occured
+        dist_moved_before_filter = (
+            target_rigid_state.translation - previous_rigid_state.translation
+        ).dot()
+        dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
+
+        # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
+        # collision _didn't_ happen. One such case is going up stairs.  Instead,
+        # we check to see if the the amount moved after the application of the filter
+        # is _less_ than the amount moved before the application of the filter
+        EPS = 1e-5
+        collided = (dist_moved_after_filter + EPS) < dist_moved_before_filter
+
+        # run any dynamics simulation
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()
+        
+    if action_name == "turn left":
+        vel_control.angular_velocity = [0.0, 2.0, 0.0]
+        
+        previous_rigid_state = locobot.rigid_state
+
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+        
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()   
+    
+    if action_name == "turn right":
+        vel_control.angular_velocity = [0.0, -2.0, 0.0]
+        
+        previous_rigid_state = locobot.rigid_state
+
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+        
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()
+    
+    if action_name == "stop":
+        last_velocity_set = 0
+        vel_control.linear_velocity = [0.0, 0.0, 1.0]
+        
+    if action_name == "print screen":
+        # Access the depth sensor data
+        depth_data = observations["depth"]
+        
+        max_val = depth_data.max()
+        
+
+        # Convert depth data to a format suitable for saving as an image
+        depth_image = ((depth_data/max_val)*255).astype(np.uint8)
+
+        # Save the depth image to a file
+        cv2.imwrite("depth_image.png", depth_image)
+        # cv2.imwrite('ego_map_image.png', rgb_image)
+
+        # Display the depth image
+        #cv2.imshow("Depth Image", depth_image)
+        cv2.waitKey(1)
