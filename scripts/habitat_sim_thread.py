@@ -11,120 +11,131 @@ from threading import Thread
 from queue import Queue
 import cv2
 
-
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
 from transformations import publish_odom_baselink_transform, publish_map_odom_transform, publish_base_link_to_scan_transform, publish_origin_to_map_transform
 from utils import make_configuration, init_locobot, print_screen, apply_cmd_vel, discrete_vel_control
 
-def habitat_sim_thread(agent_config, scene, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
-    #create the Simulator configuration
+# Constants
+DEPTH_HEIGHT = 480
+DEPTH_WIDTH = 480
+TIME_STEP = 1.0 / 10.0
+EPSILON = 1e-5
+
+def habitat_sim_thread(scene, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
+    """Main function for the habitat simulator thread."""
+
+    # Initialize simulator, agents and objects
+    simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects()
+
+    # Initialize locobot
+    locobot, vel_control = init_locobot(simulator, obj_templates_mgr, rigid_obj_mgr)
+
+    # Initialize the ego map
+    ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
+
+    # Start simulation
+    start_simulation(simulator, agent, locobot, vel_control, ego_map, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster)
+
+
+
+def init_simulator_and_objects():
+    """Create and initialize the simulator, agent, and object managers."""
+
     cfg = make_configuration()
-    
-    #create Simulator instance
-    sim = habitat_sim.Simulator(cfg)
+    simulator = habitat_sim.Simulator(cfg)
+    agent = simulator.get_agent(0)
 
-    #set Framerate
-    time_step = 1.0 / 60.0
+    # Get the primitive assets attributes manager
+    prim_templates_mgr = simulator.get_asset_template_manager()
 
-    agent = sim.get_agent(0)
+    # Get the physics object attributes manager
+    obj_templates_mgr = simulator.get_object_template_manager()
 
-    agent_transform = agent.scene_node.transformation_matrix()
+    # Get the rigid object manager
+    rigid_obj_mgr = simulator.get_rigid_object_manager()
 
-    # get the primitive assets attributes manager
-    prim_templates_mgr = sim.get_asset_template_manager()
+    return simulator, agent, obj_templates_mgr, rigid_obj_mgr
 
-    # get the physics object attributes manager
-    obj_templates_mgr = sim.get_object_template_manager()
 
-    # get the rigid object manager
-    rigid_obj_mgr = sim.get_rigid_object_manager()
 
-    locobot, vel_control = init_locobot(sim, obj_templates_mgr, rigid_obj_mgr)
+def start_simulation(simulator, agent, locobot, vel_control, ego_map, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster):
+    """Start the simulation and main loop."""
 
-    vel_control.linear_velocity = [0.0, 0.0, 0.0]
-
-    observations = sim.get_sensor_observations()
-
-    # Create an instance of the GTEgoMap class
-    depth_height = 480
-    depth_width = 480
-    ego_map = GTEgoMap(depth_H=depth_height, depth_W=depth_width)
+    observations = simulator.get_sensor_observations()
 
     while not rospy.is_shutdown():
 
-        display_top_down_map(sim)
+        display_top_down_map(simulator)
 
-        # get current time
         current_time = rospy.Time.now()
 
-        # Publish the rgb and depth images
-        # TODO error with encoding
-        # publish_rgb_image(observations, rgb_publisher)
-
-        publish_depth_image_and_camera_info(
-            sim, observations, depth_publisher, camera_info_publisher)
-        # publish_transfonrms(env.sim.get_agent_state(), tf_broadcaster)
-        publish_map_odom_transform(sim, tf_broadcaster, current_time)
-        publish_odom_baselink_transform(
-            sim.agents[0].state, tf_broadcaster, current_time)
-        publish_base_link_to_scan_transform(tf_broadcaster, current_time)
-        publish_origin_to_map_transform(tf_broadcaster, current_time)
-        # Print the current position and rotation
-        agent_state = sim.agents[0].state
+        publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time)
 
         if not message_queue.empty():
-            cmd_vel_data = message_queue.get()
-            print("CMD_VEL received:", cmd_vel_data)
+            process_cmd_vel_message(message_queue, locobot, vel_control, simulator)
 
-            linear_velocity_x = cmd_vel_data.linear.x  # forward motion
-            linear_velocity_y = cmd_vel_data.linear.y  # sideways motion
-            angular_velocity = cmd_vel_data.angular.z  # rotation
+        # Run any dynamics simulation
+        simulator.step_physics(TIME_STEP)
+        observations = simulator.get_sensor_observations()
 
-            # Convert to Habitat coordinate system
-            habitat_linear_velocity_x = -linear_velocity_x
-            habitat_linear_velocity_y = -linear_velocity_y
-            habitat_angular_velocity = angular_velocity
+        # Clear message queue
+        message_queue.queue.clear()
 
-            vel_control.linear_velocity = np.array(
-                [habitat_linear_velocity_y, 0, habitat_linear_velocity_x])
-            vel_control.angular_velocity = np.array(
-                [0, habitat_angular_velocity, 0])
 
-            previous_rigid_state = locobot.rigid_state
-            # manually integrate the rigid state
-            target_rigid_state = vel_control.integrate_transform(
-                time_step, previous_rigid_state
-            )
+def publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time):
+    """Publish transforms and images from the simulator."""
 
-            # snap rigid state to navmesh and set state to object/agent
-            end_pos = sim.step_filter(
-                previous_rigid_state.translation, target_rigid_state.translation
-            )
-            locobot.translation = end_pos
-            locobot.rotation = target_rigid_state.rotation
+    publish_depth_image_and_camera_info(simulator, observations, depth_publisher, camera_info_publisher)
+    publish_map_odom_transform(simulator, tf_broadcaster, current_time)
+    publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
+    publish_base_link_to_scan_transform(tf_broadcaster, current_time)
+    publish_origin_to_map_transform(tf_broadcaster, current_time)
 
-            # Check if a collision occured
-            dist_moved_before_filter = (
-                target_rigid_state.translation - previous_rigid_state.translation
-            ).dot()
-            dist_moved_after_filter = (
-                end_pos - previous_rigid_state.translation).dot()
 
-            # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
-            # collision _didn't_ happen. One such case is going up stairs.  Instead,
-            # we check to see if the the amount moved after the application of the filter
-            # is _less_ than the amount moved before the application of the filter
-            EPS = 1e-5
-            collided = (dist_moved_after_filter +
-                        EPS) < dist_moved_before_filter
-            
-            if collided:
-                print("ouuups you´ve crashed")
+def process_cmd_vel_message(message_queue, locobot, vel_control, simulator):
+    """Process command velocity message from the queue."""
 
-            # run any dynamics simulation
-            sim.step_physics(time_step)
-            observations = sim.get_sensor_observations()
+    cmd_vel_data = message_queue.get()
+    print("CMD_VEL received:", cmd_vel_data)
 
-            # get rid of old messeages
-            message_queue.queue.clear()
+    linear_velocity_x = cmd_vel_data.linear.x  # forward motion
+    linear_velocity_y = cmd_vel_data.linear.y  # sideways motion
+    angular_velocity = cmd_vel_data.angular.z  # rotation
+
+    # Convert to Habitat coordinate system
+    habitat_linear_velocity_x = -linear_velocity_x
+    habitat_linear_velocity_y = -linear_velocity_y
+    habitat_angular_velocity = angular_velocity
+
+    vel_control.linear_velocity = np.array([habitat_linear_velocity_y, 0, habitat_linear_velocity_x])
+    vel_control.angular_velocity = np.array([0, habitat_angular_velocity, 0])
+
+    apply_velocity_control(simulator, locobot, vel_control)
+
+
+def apply_velocity_control(simulator, locobot, vel_control):
+    """Apply velocity control and check for collisions."""
+
+    previous_rigid_state = locobot.rigid_state
+
+    target_rigid_state = vel_control.integrate_transform(TIME_STEP, previous_rigid_state)
+
+    end_pos = simulator.step_filter(previous_rigid_state.translation, target_rigid_state.translation)
+
+    locobot.translation = end_pos
+    locobot.rotation = target_rigid_state.rotation
+
+    check_for_collision(previous_rigid_state, end_pos, target_rigid_state)
+
+
+def check_for_collision(previous_rigid_state, end_pos, target_rigid_state):
+    """Check if a collision has occurred."""
+
+    dist_moved_before_filter = (target_rigid_state.translation - previous_rigid_state.translation).dot()
+    dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
+
+    collided = (dist_moved_after_filter + EPSILON) < dist_moved_before_filter
+
+    if collided:
+        print("ouuups you´ve crashed")
