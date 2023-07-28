@@ -98,8 +98,8 @@ def apply_cmd_vel(agent, cmd_vel, dt):
 
 def get_rgb_and_depth_images(sim):
     observations = sim.get_sensor_observations()
-    rgb_img = observations["rgba_camera"]
-    depth_img = observations["depth_camera"]
+    rgb_img = observations["camera"]
+    depth_img = observations["depth"]
     return rgb_img, depth_img
 
 
@@ -127,18 +127,18 @@ def place_agent(sim):
     return agent
 
 
-def init_locobot(sim, obj_templates_mgr, rigid_obj_mgr):
+def init_robot(sim, obj_templates_mgr, rigid_obj_mgr):
     locobot_template_id = obj_templates_mgr.load_configs(
-        "/home/aaron/rosxhab/habitat-sim/data/objects/locobot_merged"
+        "/home/aaron/rosxhab/habitat-sim/data/objects/rigid_robot_merged"
     )[0]
     # add robot object to the scene with the agent/camera SceneNode attached
-    locobot = rigid_obj_mgr.add_object_by_template_id(
+    rigid_robot = rigid_obj_mgr.add_object_by_template_id(
         locobot_template_id, sim.agents[0].scene_node
     )
-    initial_rotation = locobot.rotation
+    initial_rotation = rigid_robot.rotation
 
     # set the agent's body to kinematic since we will be updating position manually
-    locobot.motion_type = habitat_sim.physics.MotionType.KINEMATIC
+    rigid_robot.motion_type = habitat_sim.physics.MotionType.KINEMATIC
 
     # create and configure a new VelocityControl structure
     # Note: this is NOT the object's VelocityControl, so it will not be consumed automatically in sim.step_physics
@@ -149,12 +149,12 @@ def init_locobot(sim, obj_templates_mgr, rigid_obj_mgr):
     vel_control.ang_vel_is_local = True
     vel_control.linear_velocity = [0.0, 0.0, 0.0]
 
-    return locobot, vel_control
+    return rigid_robot, vel_control
 
 
-def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
+def discrete_vel_control(sim, action_name, vel_control, rigid_robot, time_step):
     if action_name == "move_forward":
-        previous_rigid_state = locobot.rigid_state
+        previous_rigid_state = rigid_robot.rigid_state
         vel_control.linear_velocity = [0.0, 0.0, -1.0]
         # manually integrate the rigid state
         target_rigid_state = vel_control.integrate_transform(
@@ -165,8 +165,8 @@ def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
         end_pos = sim.step_filter(
             previous_rigid_state.translation, target_rigid_state.translation
         )
-        locobot.translation = end_pos
-        locobot.rotation = target_rigid_state.rotation
+        rigid_robot.translation = end_pos
+        rigid_robot.rotation = target_rigid_state.rotation
 
         # Check if a collision occured
         dist_moved_before_filter = (
@@ -189,7 +189,7 @@ def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
     if action_name == "turn left":
         vel_control.angular_velocity = [0.0, 2.0, 0.0]
 
-        previous_rigid_state = locobot.rigid_state
+        previous_rigid_state = rigid_robot.rigid_state
 
         # manually integrate the rigid state
         target_rigid_state = vel_control.integrate_transform(
@@ -202,7 +202,7 @@ def discrete_vel_control(sim, action_name, vel_control, locobot, time_step):
     if action_name == "turn right":
         vel_control.angular_velocity = [0.0, -2.0, 0.0]
 
-        previous_rigid_state = locobot.rigid_state
+        previous_rigid_state = rigid_robot.rigid_state
 
         # manually integrate the rigid state
         target_rigid_state = vel_control.integrate_transform(

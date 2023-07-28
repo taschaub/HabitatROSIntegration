@@ -14,7 +14,7 @@ import cv2
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
 from transformations import publish_odom_baselink_transform, publish_map_odom_transform, publish_base_link_to_scan_transform, publish_origin_to_map_transform
-from utils import make_configuration, init_locobot, print_screen, apply_cmd_vel, discrete_vel_control
+from utils import make_configuration, init_robot, print_screen, apply_cmd_vel, discrete_vel_control
 
 # Constants
 DEPTH_HEIGHT = 480
@@ -29,7 +29,7 @@ def habitat_sim_thread(scene, message_queue, depth_publisher, rgb_publisher, cam
     simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects()
 
     # Initialize locobot
-    locobot, vel_control = init_locobot(simulator, obj_templates_mgr, rigid_obj_mgr)
+    locobot, vel_control = init_robot(simulator, obj_templates_mgr, rigid_obj_mgr)
 
     # Initialize the ego map
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
@@ -39,7 +39,7 @@ def habitat_sim_thread(scene, message_queue, depth_publisher, rgb_publisher, cam
 
 
 
-def init_simulator_and_objects():
+def init_simulator_and_objects(DEPTH_HEIGHT,DEPTH_WIDTH):
     """Create and initialize the simulator, agent, and object managers."""
 
     cfg = make_configuration()

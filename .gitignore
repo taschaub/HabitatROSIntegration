@@ -5,3 +5,7 @@ scripts/__pycache__/map_server.cpython-38.pyc
 scripts/__pycache__/map.cpython-38.pyc
 scripts/__pycache__/publishers.cpython-38.pyc
 scripts/__pycache__/transformations.cpython-38.pyc
+scripts/__pycache__/habitat_sim_thread_gpt.cpython-38.pyc
+scripts/__pycache__/habitat_sim_thread_refactor.cpython-38.pyc
+scripts/__pycache__/habitat_sim_thread.cpython-38.pyc
+scripts/__pycache__/utils.cpython-38.pyc
