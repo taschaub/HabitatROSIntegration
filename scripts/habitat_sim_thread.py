@@ -22,24 +22,24 @@ DEPTH_WIDTH = 480
 TIME_STEP = 1.0 / 10.0
 EPSILON = 1e-5
 
-def habitat_sim_thread(scene, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
+def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
     """Main function for the habitat simulator thread."""
 
     # Initialize simulator, agents and objects
-    simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects()
+    simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects(DEPTH_WIDTH, DEPTH_HEIGHT)
 
-    # Initialize locobot
-    locobot, vel_control = init_robot(simulator, obj_templates_mgr, rigid_obj_mgr)
+    # Initialize rigid_robot
+    rigid_robot, vel_control = init_robot(simulator, obj_templates_mgr, rigid_obj_mgr)
 
     # Initialize the ego map
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
 
     # Start simulation
-    start_simulation(simulator, agent, locobot, vel_control, ego_map, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster)
+    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster)
 
 
 
-def init_simulator_and_objects(DEPTH_HEIGHT,DEPTH_WIDTH):
+def init_simulator_and_objects(depth_width, depth_height):
     """Create and initialize the simulator, agent, and object managers."""
 
     cfg = make_configuration()
@@ -59,7 +59,7 @@ def init_simulator_and_objects(DEPTH_HEIGHT,DEPTH_WIDTH):
 
 
 
-def start_simulation(simulator, agent, locobot, vel_control, ego_map, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster):
+def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster):
     """Start the simulation and main loop."""
 
     observations = simulator.get_sensor_observations()
@@ -73,8 +73,11 @@ def start_simulation(simulator, agent, locobot, vel_control, ego_map, message_qu
         publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time)
 
         if not message_queue.empty():
-            process_cmd_vel_message(message_queue, locobot, vel_control, simulator)
+            process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator)
 
+        if not setup_queue.empty():
+            process_setup_message(setup_queue, rigid_robot, simulator)  
+            
         # Run any dynamics simulation
         simulator.step_physics(TIME_STEP)
         observations = simulator.get_sensor_observations()
@@ -93,7 +96,7 @@ def publish_transforms_and_images(simulator, observations, depth_publisher, came
     publish_origin_to_map_transform(tf_broadcaster, current_time)
 
 
-def process_cmd_vel_message(message_queue, locobot, vel_control, simulator):
+def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator):
     """Process command velocity message from the queue."""
 
     cmd_vel_data = message_queue.get()
@@ -111,20 +114,33 @@ def process_cmd_vel_message(message_queue, locobot, vel_control, simulator):
     vel_control.linear_velocity = np.array([habitat_linear_velocity_y, 0, habitat_linear_velocity_x])
     vel_control.angular_velocity = np.array([0, habitat_angular_velocity, 0])
 
-    apply_velocity_control(simulator, locobot, vel_control)
+    apply_velocity_control(simulator, rigid_robot, vel_control)
+    
+def process_setup_message(setup_queue, rigid_robot, vel_control, simulator):
+    #TODO: stop move base until new scene is setup
+    
+    setup_data = setup_queue.get()
+    
+    StartPos = setup_data.StartPoint
+    
+    rigid_robot.translation = [-StartPos.y, 0, StartPos.x]
+    
+    # TODO: set goal position
+    
+    
 
 
-def apply_velocity_control(simulator, locobot, vel_control):
+def apply_velocity_control(simulator, rigid_robot, vel_control):
     """Apply velocity control and check for collisions."""
 
-    previous_rigid_state = locobot.rigid_state
+    previous_rigid_state = rigid_robot.rigid_state
 
     target_rigid_state = vel_control.integrate_transform(TIME_STEP, previous_rigid_state)
 
     end_pos = simulator.step_filter(previous_rigid_state.translation, target_rigid_state.translation)
 
-    locobot.translation = end_pos
-    locobot.rotation = target_rigid_state.rotation
+    rigid_robot.translation = end_pos
+    rigid_robot.rotation = target_rigid_state.rotation
 
     check_for_collision(previous_rigid_state, end_pos, target_rigid_state)
 

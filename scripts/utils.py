@@ -129,7 +129,7 @@ def place_agent(sim):
 
 def init_robot(sim, obj_templates_mgr, rigid_obj_mgr):
     locobot_template_id = obj_templates_mgr.load_configs(
-        "/home/aaron/rosxhab/habitat-sim/data/objects/rigid_robot_merged"
+        "/home/aaron/rosxhab/habitat-sim/data/objects/locobot_merged"
     )[0]
     # add robot object to the scene with the agent/camera SceneNode attached
     rigid_robot = rigid_obj_mgr.add_object_by_template_id(

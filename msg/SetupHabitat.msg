@@ -1,0 +1,3 @@
+string SceneName
+geometry_msgs/Pose StartPoint
+geometry_msgs/Pose GoalPoint
