@@ -15,7 +15,7 @@ from habitat_sim_thread import habitat_sim_thread
 
 # Constants
 TOPIC_CMD_VEL = "cmd_vel"
-TOPIC_SETUP = "setup_habitat"
+TOPIC_SETUP = "/setup_habitat"
 TOPIC_DEPTH_IMAGE = "depth_image"
 TOPIC_RGB_IMAGE = "rgb_image"
 TOPIC_CAMERA_INFO = "camera_info"
@@ -47,6 +47,7 @@ def main():
         
     def callback_setup(data):
         print("New setup message received")
+        setup_queue.put(data)
         print(data)
 
     rospy.Subscriber(TOPIC_CMD_VEL, Twist, callback_cmd_vel)

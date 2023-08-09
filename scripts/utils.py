@@ -77,23 +77,24 @@ def make_configuration():
     return habitat_sim.Configuration(backend_cfg, [agent_cfg])
 
 
-def apply_cmd_vel(agent, cmd_vel, dt):
-    # cmd_vel should be a tuple or list like (linear_velocity, angular_velocity)
-    linear_velocity, angular_velocity = cmd_vel
+# def apply_cmd_vel(agent, cmd_vel, dt): 
+#     #TODO: remove
+#     # cmd_vel should be a tuple or list like (linear_velocity, angular_velocity)
+#     linear_velocity, angular_velocity = cmd_vel
 
-    # get the agent's current state
-    state = agent.get_state()
+#     # get the agent's current state
+#     state = agent.get_state()
 
-    # integrate the linear velocity to get the change in position
-    dp = linear_velocity * dt
-    state.position += dp
+#     # integrate the linear velocity to get the change in position
+#     dp = linear_velocity * dt
+#     state.position += dp
 
-    # integrate the angular velocity to get the change in orientation
-    da = angular_velocity * dt
-    state.rotation *= np.quaternion(np.cos(da / 2), 0, np.sin(da / 2), 0)
+#     # integrate the angular velocity to get the change in orientation
+#     da = angular_velocity * dt
+#     state.rotation *= np.quaternion(np.cos(da / 2), 0, np.sin(da / 2), 0)
 
-    # set the agent's state
-    agent.set_state(state, reset_sensors=False)
+#     # set the agent's state
+#     agent.set_state(state, reset_sensors=False)
 
 
 def get_rgb_and_depth_images(sim):
@@ -118,13 +119,13 @@ def print_screen(rgb_image, depth_data):
     cv2.waitKey(1)
 
 
-def place_agent(sim):
-    # place our agent in the scene
-    agent_state = habitat_sim.AgentState()
-    agent_state.position = [-0.15, -0.7, 1.0]
-    agent_state.rotation = np.quaternion(-0.83147, 0, 0.55557, 0)
-    agent = sim.initialize_agent(0, agent_state)
-    return agent
+# def place_agent(sim):
+#     # place our agent in the scene
+#     agent_state = habitat_sim.AgentState()
+#     agent_state.position = [-0.15, -0.7, 1.0]
+#     agent_state.rotation = np.quaternion(-0.83147, 0, 0.55557, 0)
+#     agent = sim.initialize_agent(0, agent_state)
+#     return agent
 
 
 def init_robot(sim, obj_templates_mgr, rigid_obj_mgr):

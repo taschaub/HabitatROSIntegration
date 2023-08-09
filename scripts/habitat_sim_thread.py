@@ -4,6 +4,7 @@ import habitat_sim
 from gtego_map import GTEgoMap
 from map_server import MapServer
 
+
 import numpy as np
 
 import rospy
@@ -13,13 +14,13 @@ import cv2
 
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
-from transformations import publish_odom_baselink_transform, publish_map_odom_transform, publish_base_link_to_scan_transform, publish_origin_to_map_transform
-from utils import make_configuration, init_robot, print_screen, apply_cmd_vel, discrete_vel_control
+import transformations as tfs
+from utils import make_configuration, init_robot, print_screen, discrete_vel_control
 
 # Constants
 DEPTH_HEIGHT = 480
 DEPTH_WIDTH = 480
-TIME_STEP = 1.0 / 10.0
+TIME_STEP = 1.0 / 6.0
 EPSILON = 1e-5
 
 def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
@@ -90,10 +91,10 @@ def publish_transforms_and_images(simulator, observations, depth_publisher, came
     """Publish transforms and images from the simulator."""
 
     publish_depth_image_and_camera_info(simulator, observations, depth_publisher, camera_info_publisher)
-    publish_map_odom_transform(simulator, tf_broadcaster, current_time)
-    publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
-    publish_base_link_to_scan_transform(tf_broadcaster, current_time)
-    publish_origin_to_map_transform(tf_broadcaster, current_time)
+    tfs.publish_map_odom_transform(simulator, tf_broadcaster, current_time)
+    tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
+    tfs.publish_base_link_to_scan_transform(tf_broadcaster, current_time)
+    tfs.publish_origin_to_map_transform(tf_broadcaster, current_time)
 
 
 def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator):
@@ -116,14 +117,21 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator):
 
     apply_velocity_control(simulator, rigid_robot, vel_control)
     
-def process_setup_message(setup_queue, rigid_robot, vel_control, simulator):
+def process_setup_message(setup_queue, rigid_robot, simulator):
     #TODO: stop move base until new scene is setup
     
     setup_data = setup_queue.get()
     
-    StartPos = setup_data.StartPoint
+    StartPosRos = setup_data.StartPoint
     
-    rigid_robot.translation = [-StartPos.y, 0, StartPos.x]
+    rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
+    
+    start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
+    test_rot = tfs.ros_to_habitat_quaternion(start_rotation_array)
+    
+    rigid_robot.rotation = test_rot
+    # Run any dynamics simulation
+    simulator.step_physics(TIME_STEP)
     
     # TODO: set goal position
     

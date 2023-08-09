@@ -3,12 +3,12 @@ import rospy
 from geometry_msgs.msg import PoseStamped, Point, Quaternion
 from nav_msgs.msg import Path
 from std_msgs.msg import String
-from publish_test.msg import SetupHabitat, RunTime
+from publish_test.msg import SetupHabitat, BasicAction
 
 class EpisodeManager:
     def __init__(self):
         # Load episode data from JSON file
-        with open('episodes.json') as f:
+        with open('/home/aaron/catkin_ws/src/publish_test/scripts/episodes.json') as f:
             self.episodes = json.load(f)
 
         # Initialize current episode
@@ -16,15 +16,15 @@ class EpisodeManager:
         self.episode_id = 0
 
         # Initialize ROS publishers and subscribers
-        self.setup_pub = rospy.Publisher('/setup_habitat', SetupHabitat, queue_size=10)
-        self.run_time_sub = rospy.Subscriber('/run_time', RunTime, self.run_time_callback)
+        self.setup_pub = rospy.Publisher('setup_habitat', SetupHabitat, queue_size=10)
+        self.run_time_sub = rospy.Subscriber('run_time', BasicAction, self.run_time_callback)
 
         # Initialize SetupHabitat message
         self.setup_msg = SetupHabitat()
 
     def run_time_callback(self, msg):
         # If run_time is end time, move to the next episode
-        if msg.run_time_type == 'end':
+        if msg.ActionIdx == 0:
             self.episode_id += 1
             if self.episode_id < len(self.episodes):
                 self.current_episode = self.episodes[self.episode_id]
@@ -46,5 +46,7 @@ class EpisodeManager:
 if __name__ == '__main__':
     rospy.init_node('episode_manager_node')
     em = EpisodeManager()
+    rospy.sleep(1)  # Delay for 1 second so that first message is sent
+
     em.send_setup_msg()  # Send initial setup message
     rospy.spin()
