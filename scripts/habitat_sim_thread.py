@@ -21,6 +21,7 @@ from utils import make_configuration, init_robot, print_screen, discrete_vel_con
 DEPTH_HEIGHT = 480
 DEPTH_WIDTH = 480
 TIME_STEP = 1.0 / 6.0
+TIME_STEP = 1.0 / 6.0
 EPSILON = 1e-5
 
 def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
