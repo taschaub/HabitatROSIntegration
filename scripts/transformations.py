@@ -182,6 +182,7 @@ def publish_origin_to_map_transform(tf_broadcaster, current_time):
     transform.header.frame_id = "origin"
     transform.child_frame_id = "map"
 
+    #TODO: adjust bounds
     # Set the translation (this depends on where the scanner is mounted on the robot)
     transform.transform.translation.x = -9.16  # upperbound - lower bound /2 distance forward from the base_link
     transform.transform.translation.y = -12.31  # distance left from the base_link

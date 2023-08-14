@@ -4,6 +4,7 @@ import habitat_sim
 from gtego_map import GTEgoMap
 from map_server import MapServer
 from geometry_msgs.msg import PoseStamped
+from publish_test.msg import BasicAction
 
 
 
@@ -26,7 +27,7 @@ TIME_STEP = 1.0 / 6.0
 TIME_STEP = 1.0 / 6.0
 EPSILON = 1e-5
 
-def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher):
+def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
     """Main function for the habitat simulator thread."""
 
     # Initialize simulator, agents and objects
@@ -39,7 +40,7 @@ def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_p
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
 
     # Start simulation
-    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher)
+    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher)
 
 
 
@@ -63,7 +64,7 @@ def init_simulator_and_objects(depth_width, depth_height):
 
 
 
-def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher):
+def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
     """Start the simulation and main loop."""
 
     observations = simulator.get_sensor_observations()
@@ -77,7 +78,7 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
         publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time)
 
         if not message_queue.empty():
-            process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator)
+            process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, crash_publisher)
 
         if not setup_queue.empty():
             process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher)  
@@ -100,7 +101,7 @@ def publish_transforms_and_images(simulator, observations, depth_publisher, came
     tfs.publish_origin_to_map_transform(tf_broadcaster, current_time)
 
 
-def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator):
+def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, crash_publisher):
     """Process command velocity message from the queue."""
 
     cmd_vel_data = message_queue.get()
@@ -118,7 +119,7 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator):
     vel_control.linear_velocity = np.array([habitat_linear_velocity_y, 0, habitat_linear_velocity_x])
     vel_control.angular_velocity = np.array([0, habitat_angular_velocity, 0])
 
-    apply_velocity_control(simulator, rigid_robot, vel_control)
+    apply_velocity_control(simulator, rigid_robot, vel_control, crash_publisher)
     
 def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher):
     #TODO: stop move base until new scene is setup
@@ -147,7 +148,7 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher):
     
 
 
-def apply_velocity_control(simulator, rigid_robot, vel_control):
+def apply_velocity_control(simulator, rigid_robot, vel_control, crash_publisher):
     """Apply velocity control and check for collisions."""
 
     previous_rigid_state = rigid_robot.rigid_state
@@ -159,10 +160,10 @@ def apply_velocity_control(simulator, rigid_robot, vel_control):
     rigid_robot.translation = end_pos
     rigid_robot.rotation = target_rigid_state.rotation
 
-    check_for_collision(previous_rigid_state, end_pos, target_rigid_state)
+    check_for_collision(previous_rigid_state, end_pos, target_rigid_state, crash_publisher)
 
 
-def check_for_collision(previous_rigid_state, end_pos, target_rigid_state):
+def check_for_collision(previous_rigid_state, end_pos, target_rigid_state, crash_publisher):
     """Check if a collision has occurred."""
 
     dist_moved_before_filter = (target_rigid_state.translation - previous_rigid_state.translation).dot()
@@ -172,3 +173,8 @@ def check_for_collision(previous_rigid_state, end_pos, target_rigid_state):
 
     if collided:
         print("ouuups you´ve crashed")
+        crash_cmd = BasicAction()
+        crash_cmd.Action = "STOP"
+        crash_cmd.ActionIdx = 0
+        rospy.loginfo(crash_cmd)
+        crash_publisher.publish(crash_cmd)
