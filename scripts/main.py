@@ -8,6 +8,8 @@ from threading import Thread
 from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
 from geometry_msgs.msg import Twist
 from publish_test.msg import SetupHabitat
+from geometry_msgs.msg import PoseStamped
+
 
 import tf2_ros
 
@@ -21,9 +23,9 @@ TOPIC_RGB_IMAGE = "rgb_image"
 TOPIC_CAMERA_INFO = "camera_info"
 SCENE_PATH = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
 
-def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
+def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher):
     ht = Thread(target=habitat_sim_thread, 
-                args=(SCENE_PATH, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster))
+                args=(SCENE_PATH, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher))
     ht.start()
 
 def main():
@@ -36,10 +38,11 @@ def main():
     depth_publisher = rospy.Publisher(TOPIC_DEPTH_IMAGE, RosImage, queue_size=10)
     rgb_publisher = rospy.Publisher(TOPIC_RGB_IMAGE, RosImage, queue_size=10)
     camera_info_publisher = rospy.Publisher(TOPIC_CAMERA_INFO, CameraInfo, queue_size=10)
-
+    goal_publisher = rospy.Publisher("move_base_simple/goal", PoseStamped, queue_size=10)
+    
     tf_broadcaster = tf2_ros.TransformBroadcaster()
 
-    start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster)
+    start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher)
 
     def callback_cmd_vel(data):
         print("Action received:", data)

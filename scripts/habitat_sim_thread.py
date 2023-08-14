@@ -3,6 +3,8 @@ import habitat
 import habitat_sim
 from gtego_map import GTEgoMap
 from map_server import MapServer
+from geometry_msgs.msg import PoseStamped
+
 
 
 import numpy as np
@@ -24,7 +26,7 @@ TIME_STEP = 1.0 / 6.0
 TIME_STEP = 1.0 / 6.0
 EPSILON = 1e-5
 
-def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster):
+def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher):
     """Main function for the habitat simulator thread."""
 
     # Initialize simulator, agents and objects
@@ -37,7 +39,7 @@ def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_p
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
 
     # Start simulation
-    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster)
+    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher)
 
 
 
@@ -61,7 +63,7 @@ def init_simulator_and_objects(depth_width, depth_height):
 
 
 
-def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster):
+def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher):
     """Start the simulation and main loop."""
 
     observations = simulator.get_sensor_observations()
@@ -78,7 +80,7 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
             process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator)
 
         if not setup_queue.empty():
-            process_setup_message(setup_queue, rigid_robot, simulator)  
+            process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher)  
             
         # Run any dynamics simulation
         simulator.step_physics(TIME_STEP)
@@ -118,7 +120,7 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator):
 
     apply_velocity_control(simulator, rigid_robot, vel_control)
     
-def process_setup_message(setup_queue, rigid_robot, simulator):
+def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher):
     #TODO: stop move base until new scene is setup
     
     setup_data = setup_queue.get()
@@ -135,6 +137,12 @@ def process_setup_message(setup_queue, rigid_robot, simulator):
     simulator.step_physics(TIME_STEP)
     
     # TODO: set goal position
+    # Publishing the goal
+    goal_msg = PoseStamped()
+    goal_msg.header.stamp = rospy.Time.now()
+    goal_msg.header.frame_id = "map"  # publishing the goal in the odom frame
+    goal_msg.pose = setup_data.GoalPoint
+    goal_publisher.publish(goal_msg)
     
     
 
