@@ -27,6 +27,9 @@ TIME_STEP = 1.0 / 6.0
 TIME_STEP = 1.0 / 6.0
 EPSILON = 1e-5
 
+setup_state = None
+setup_data = None
+
 def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
     """Main function for the habitat simulator thread."""
 
@@ -82,10 +85,11 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
 
         
         
-        if not setup_queue.empty():
-            current_time.nsecs +=1000
-            process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
-       
+        # if not setup_queue.empty():
+        #     current_time.nsecs +=1000
+        #     process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
+        process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
+
 
             
         # Run any dynamics simulation
@@ -127,33 +131,37 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, 
     apply_velocity_control(simulator, rigid_robot, vel_control, crash_publisher)
     
 def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time):
-    #TODO: stop move base until new scene is setup
-    
-    setup_data = setup_queue.get()
-    
-    StartPosRos = setup_data.StartPoint
-    
-    rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
-    
-    start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
-    test_rot = tfs.ros_to_habitat_quaternion(start_rotation_array)
-    
-    rigid_robot.rotation = test_rot
-    # Run any dynamics simulation
-    simulator.step_physics(TIME_STEP)
-    
-    rospy.sleep(1)
-    
-    tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
-    
-    rospy.sleep(1)
- 
-    # Publishing the goal
-    goal_msg = PoseStamped()
-    goal_msg.header.stamp = rospy.Time.now()
-    goal_msg.header.frame_id = "map"  # publishing the goal in the odom frame
-    goal_msg.pose = setup_data.GoalPoint
-    goal_publisher.publish(goal_msg)
+    #in order to start an episode correctly we first set the starting point and in the next iteration we set the goal
+    global setup_state, setup_data
+
+    if setup_state is None and not setup_queue.empty():
+        # Start new setup
+        setup_data = setup_queue.get()
+        setup_state = "set_position"
+
+    if setup_state == "set_position":
+        StartPosRos = setup_data.StartPoint
+        rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
+        start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
+        test_rot = tfs.ros_to_habitat_quaternion(start_rotation_array)
+        rigid_robot.rotation = test_rot
+        simulator.step_physics(TIME_STEP)
+        setup_state = "publish_goal"
+
+    # elif setup_state == "publish_transform":
+    #     tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
+    #     setup_state = "publish_goal"
+
+    elif setup_state == "publish_goal":
+        # Publishing the goal
+        goal_msg = PoseStamped()
+        goal_msg.header.stamp = rospy.Time.now()
+        goal_msg.header.frame_id = "map"
+        goal_msg.pose = setup_data.GoalPoint
+        goal_publisher.publish(goal_msg)
+        # Reset state
+        setup_state = None
+        setup_data = None
     
     
 
