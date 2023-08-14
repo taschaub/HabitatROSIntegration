@@ -10,3 +10,4 @@ scripts/__pycache__/habitat_sim_thread_refactor.cpython-38.pyc
 scripts/__pycache__/habitat_sim_thread.cpython-38.pyc
 scripts/__pycache__/utils.cpython-38.pyc
 scripts/__pycache__/PoseTransformer.cpython-38.pyc
+evaluation/

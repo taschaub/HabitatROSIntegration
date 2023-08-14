@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
+import tf
 from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PoseStamped
 from publish_test.msg import BasicAction
@@ -11,6 +12,9 @@ class Evaluation:
     def __init__(self):
         # Initialize node
         rospy.init_node('evaluation')
+        
+        # Initialize tf listener
+        self.listener = tf.TransformListener()
 
         # Initialize subscribers
         rospy.Subscriber("move_base/status", GoalStatusArray, self.move_base_status_callback)
@@ -44,6 +48,32 @@ class Evaluation:
                 self.goal_active = False
                 self.episodes[self.current_episode_id]['end_time'] = rospy.Time.now().to_sec()
 
+    def get_transform(self):
+        # This method will get the transform from odom to base_link
+        try:
+            (trans, rot) = self.listener.lookupTransform('odom', 'base_link', rospy.Time(0))
+            return trans, rot
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            return None, None
+        
+    def record_position(self):
+        # If there's a goal active, store the robot's position in the path
+        if self.goal_active:
+            trans, rot = self.get_transform()
+            if trans and rot:
+                if 'path' not in self.episodes[self.current_episode_id]:
+                    self.episodes[self.current_episode_id]['path'] = []
+                # Save just the translation for now, but you can modify to save rotation as well if required.
+                self.episodes[self.current_episode_id]['path'].append(trans)
+       
+        # Save path data for each episode (you can modify the way it's saved based on your needs)
+        for episode_id, data in self.episodes.items():
+            if 'path' in data:
+                with open(f'/home/aaron/catkin_ws/src/publish_test/evaluation/path_data_episode_{episode_id}.csv', 'w') as f:
+                    for pos in data['path']:
+                        f.write(f"{pos[0]},{pos[1]}\n")
+    
+    
     def collision_callback(self, msg):
         # Increment current episode's collision count
         if self.current_episode_id in self.episodes:
@@ -54,7 +84,7 @@ class Evaluation:
         df = pd.DataFrame.from_dict(self.episodes, orient='index')
 
         # Save DataFrame to a CSV file
-        df.to_csv('/home/aaron/catkin_ws/src/publish_test/scripts/evaluation_data.csv')
+        df.to_csv('/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_data.csv')
 
     def compute_metrics(self):
         # TODO: Compute metrics based on self.episodes
@@ -62,5 +92,10 @@ class Evaluation:
 
 if __name__ == "__main__":
     evaluation = Evaluation()
-    rospy.spin()
-    evaluation.save_data()  # save data when the node is shutdown
+    
+    rate = rospy.Rate(10)  # 10Hz
+    while not rospy.is_shutdown():
+        evaluation.record_position()
+        rate.sleep()
+        
+    evaluation.save_data()  #
