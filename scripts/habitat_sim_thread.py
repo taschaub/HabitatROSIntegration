@@ -74,14 +74,19 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
         display_top_down_map(simulator)
 
         current_time = rospy.Time.now()
-
+        
         publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time)
-
+    
         if not message_queue.empty():
             process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, crash_publisher)
 
+        
+        
         if not setup_queue.empty():
-            process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher)  
+            current_time.nsecs +=1000
+            process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
+       
+
             
         # Run any dynamics simulation
         simulator.step_physics(TIME_STEP)
@@ -121,7 +126,7 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, 
 
     apply_velocity_control(simulator, rigid_robot, vel_control, crash_publisher)
     
-def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher):
+def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time):
     #TODO: stop move base until new scene is setup
     
     setup_data = setup_queue.get()
@@ -137,7 +142,12 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher):
     # Run any dynamics simulation
     simulator.step_physics(TIME_STEP)
     
-    # TODO: set goal position
+    rospy.sleep(1)
+    
+    tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
+    
+    rospy.sleep(1)
+ 
     # Publishing the goal
     goal_msg = PoseStamped()
     goal_msg.header.stamp = rospy.Time.now()
