@@ -175,17 +175,20 @@ def publish_base_link_to_scan_transform(tf_broadcaster, current_time):
     # Publish the transform
     tf_broadcaster.sendTransform(transform)
     
-def publish_origin_to_map_transform(tf_broadcaster, current_time):
+def publish_origin_to_map_transform(simulator, tf_broadcaster, current_time):
     transform = geometry_msgs.msg.TransformStamped()
 
     # Set the frame IDs
     transform.header.frame_id = "origin"
     transform.child_frame_id = "map"
+    
+    bounds = simulator.pathfinder.get_bounds()
+
 
     #TODO: adjust bounds
     # Set the translation (this depends on where the scanner is mounted on the robot)
-    transform.transform.translation.x = -9.16  # upperbound - lower bound /2 distance forward from the base_link
-    transform.transform.translation.y = -12.31  # distance left from the base_link
+    transform.transform.translation.x = -(bounds[1][0]-bounds[0][0])/2#-9.16  # upperbound - lower bound /2 distance forward from the base_link
+    transform.transform.translation.y = -(bounds[1][2]-bounds[0][2])/2# -12.31  # distance left from the base_link
     transform.transform.translation.z = 0.0  # height above the base_link
 
     # Set the rotation (this depends on the orientation of the scanner)

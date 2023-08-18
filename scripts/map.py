@@ -10,7 +10,8 @@ def display_top_down_map(sim):
     # agent_state = sim.get_agent_state()
     agent = sim.get_agent(0)
     agent_state = agent.state
-    top_down_map = maps.get_topdown_map(sim.pathfinder, meters_per_pixel=0.05, height=0.5)
+    map_scan_height = 0.5+agent_state.position[1]
+    top_down_map = maps.get_topdown_map(sim.pathfinder, meters_per_pixel=0.05, height=map_scan_height)
     top_down_map = maps.colorize_topdown_map(top_down_map)
 
     # Draw the agent's position and orientation on the map
@@ -48,7 +49,7 @@ def display_top_down_map(sim):
     top_down_map = cv2.cvtColor(top_down_map, cv2.COLOR_BGR2GRAY)
     top_down_map = cv2.normalize(top_down_map, None, 0, 255, cv2.NORM_MINMAX)
 
-    save_image_and_yaml(top_down_map, 'test_map.pgm', 'test_map.yaml')
+    save_image_and_yaml(top_down_map, '/home/aaron/catkin_ws/test_map.pgm', '/home/aaron/catkin_ws/test_map.yaml')
 
 def save_image_and_yaml(top_down_map, pgm_filename, yaml_filename, resolution=0.05, origin=[0.0, 0.0, 0.0]):
     image = PilImage.fromarray(top_down_map)

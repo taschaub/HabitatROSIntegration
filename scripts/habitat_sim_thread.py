@@ -23,8 +23,7 @@ from utils import make_configuration, init_robot, print_screen, discrete_vel_con
 # Constants
 DEPTH_HEIGHT = 480
 DEPTH_WIDTH = 480
-TIME_STEP = 1.0 / 6.0
-TIME_STEP = 1.0 / 6.0
+TIME_STEP = 1.0 / 10.0
 EPSILON = 1e-5
 
 setup_state = None
@@ -34,7 +33,7 @@ def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_p
     """Main function for the habitat simulator thread."""
 
     # Initialize simulator, agents and objects
-    simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects(DEPTH_WIDTH, DEPTH_HEIGHT)
+    simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects(scene, DEPTH_WIDTH, DEPTH_HEIGHT)
 
     # Initialize rigid_robot
     rigid_robot, vel_control = init_robot(simulator, obj_templates_mgr, rigid_obj_mgr)
@@ -43,14 +42,14 @@ def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_p
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
 
     # Start simulation
-    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher)
+    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher)
 
 
 
-def init_simulator_and_objects(depth_width, depth_height):
+def init_simulator_and_objects(scene, depth_width, depth_height):
     """Create and initialize the simulator, agent, and object managers."""
 
-    cfg = make_configuration()
+    cfg = make_configuration(scene)
     simulator = habitat_sim.Simulator(cfg)
     agent = simulator.get_agent(0)
 
@@ -67,7 +66,7 @@ def init_simulator_and_objects(depth_width, depth_height):
 
 
 
-def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
+def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
     """Start the simulation and main loop."""
 
     observations = simulator.get_sensor_observations()
@@ -78,7 +77,7 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
 
         current_time = rospy.Time.now()
         
-        publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time)
+        publish_transforms_and_images(simulator, observations, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, current_time)
     
         if not message_queue.empty():
             process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, crash_publisher)
@@ -100,14 +99,14 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
         message_queue.queue.clear()
 
 
-def publish_transforms_and_images(simulator, observations, depth_publisher, camera_info_publisher, tf_broadcaster, current_time):
+def publish_transforms_and_images(simulator, observations, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, current_time):
     """Publish transforms and images from the simulator."""
-
+    publish_rgb_image(observations, rgb_publisher)
     publish_depth_image_and_camera_info(simulator, observations, depth_publisher, camera_info_publisher)
     tfs.publish_map_odom_transform(simulator, tf_broadcaster, current_time)
     tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
     tfs.publish_base_link_to_scan_transform(tf_broadcaster, current_time)
-    tfs.publish_origin_to_map_transform(tf_broadcaster, current_time)
+    tfs.publish_origin_to_map_transform(simulator, tf_broadcaster, current_time)
 
 
 def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, crash_publisher):

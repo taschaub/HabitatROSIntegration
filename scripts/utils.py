@@ -45,10 +45,13 @@ def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angl
     return scan_msg
 
 
-def make_configuration():
+def make_configuration(scene_path):
     # simulator configuration
     backend_cfg = habitat_sim.SimulatorConfiguration()
-    backend_cfg.scene_id = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+    # backend_cfg.scene_id = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+    backend_cfg.scene_id = scene_path#"data/scene_datasets/mp3d/1LXtFkjw3qL/1LXtFkjw3qL.glb"
+
+    
     backend_cfg.enable_physics = True
 
     # sensor configurations

@@ -7,10 +7,12 @@ from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
 
 def publish_rgb_image(observations, rgb_image_publisher):
     bridge = CvBridge()
+    timestamp = rospy.Time.now()
 
     # Convert RGB data to a format suitable for saving as an image
     rgb_data = observations["camera"]
-    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data, encoding="bgr8")
+    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data)#, encoding="8UC4")
+    rgb_image_msg.header.stamp = timestamp
 
     # Publish the RGB image
     rgb_image_publisher.publish(rgb_image_msg)

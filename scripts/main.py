@@ -22,7 +22,10 @@ TOPIC_CRASH = "crash_detect"
 TOPIC_DEPTH_IMAGE = "depth_image"
 TOPIC_RGB_IMAGE = "rgb_image"
 TOPIC_CAMERA_INFO = "camera_info"
-SCENE_PATH = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+# SCENE_PATH = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+# SCENE_PATH = "data/scene_datasets/mp3d/1LXtFkjw3qL/1LXtFkjw3qL.glb"
+SCENE_PATH = "data/scene_datasets/mp3d/TbHJrupSAjP/TbHJrupSAjP.glb"
+
 
 def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
     ht = Thread(target=habitat_sim_thread, 
