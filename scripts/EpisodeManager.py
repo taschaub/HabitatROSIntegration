@@ -66,7 +66,9 @@ class EpisodeManager:
         # goal_pose_transformed = self.transformer.transform_pose(goal_pose)
 
         # Fill SetupHabitat message with transformed episode data
+        # self.setup_msg.EpisodeId = self.current_episode['episode']
         self.setup_msg.SceneName = self.current_episode['scene']
+        
         self.setup_msg.StartPoint = start_pose_transformed
         self.setup_msg.GoalPoint = goal_pose #_transformed
 

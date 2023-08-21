@@ -19,6 +19,7 @@ from habitat_sim_thread import habitat_sim_thread
 TOPIC_CMD_VEL = "cmd_vel"
 TOPIC_SETUP = "/setup_habitat"
 TOPIC_CRASH = "crash_detect"
+TOPIC_CRASH = "switch_scene"
 TOPIC_DEPTH_IMAGE = "depth_image"
 TOPIC_RGB_IMAGE = "rgb_image"
 TOPIC_CAMERA_INFO = "camera_info"
@@ -27,9 +28,9 @@ TOPIC_CAMERA_INFO = "camera_info"
 SCENE_PATH = "data/scene_datasets/mp3d/TbHJrupSAjP/TbHJrupSAjP.glb"
 
 
-def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
+def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher):
     ht = Thread(target=habitat_sim_thread, 
-                args=(SCENE_PATH, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher))
+                args=(SCENE_PATH, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher))
     ht.start()
 
 def main():
@@ -44,10 +45,12 @@ def main():
     camera_info_publisher = rospy.Publisher(TOPIC_CAMERA_INFO, CameraInfo, queue_size=10)
     goal_publisher = rospy.Publisher("move_base_simple/goal", PoseStamped, queue_size=10)
     crash_publisher = rospy.Publisher(TOPIC_CRASH, BasicAction, queue_size=10)
+    scene_publisher = rospy.Publisher(TOPIC_CRASH, BasicAction, queue_size=10)
+
 
     tf_broadcaster = tf2_ros.TransformBroadcaster()
 
-    start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher)
+    start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher)
 
     def callback_cmd_vel(data):
         print("Action received:", data)

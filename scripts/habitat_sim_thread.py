@@ -14,6 +14,8 @@ import rospy
 from threading import Thread
 from queue import Queue
 import cv2
+from EpisodeManager import PoseTransformer
+
 
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
@@ -28,8 +30,10 @@ EPSILON = 1e-5
 
 setup_state = None
 setup_data = None
+current_scene = None
+point_transformer = None
 
-def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
+def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher):
     """Main function for the habitat simulator thread."""
 
     # Initialize simulator, agents and objects
@@ -42,7 +46,7 @@ def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_p
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
 
     # Start simulation
-    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher)
+    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher)
 
 
 
@@ -66,7 +70,7 @@ def init_simulator_and_objects(scene, depth_width, depth_height):
 
 
 
-def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher):
+def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher):
     """Start the simulation and main loop."""
 
     observations = simulator.get_sensor_observations()
@@ -87,7 +91,7 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
         # if not setup_queue.empty():
         #     current_time.nsecs +=1000
         #     process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
-        process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
+        simulator, agent , rigid_robot, vel_control = process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control)  
 
 
             
@@ -129,16 +133,73 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, 
 
     apply_velocity_control(simulator, rigid_robot, vel_control, crash_publisher)
     
-def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time):
+def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control):
     #in order to start an episode correctly we first set the starting point and in the next iteration we set the goal
-    global setup_state, setup_data
+    global setup_state, setup_data, current_scene, point_transformer
 
     if setup_state is None and not setup_queue.empty():
+
         # Start new setup
         setup_data = setup_queue.get()
-        setup_state = "set_position"
+        setup_state = "update_position"
+        if current_scene is not setup_data.SceneName:
+            current_scene = setup_data.SceneName
+            setup_state = "switch_scene"
+        # else:
+        #     point_transformer = PoseTransformer()
 
-    if setup_state == "set_position":
+    if setup_state == "switch_scene":
+        #set false so that the whole program doesnt stop
+        simulator.close(False)
+        # Initialize simulator, agents and objects
+        simulator, agent, obj_templates_mgr, rigid_obj_mgr = init_simulator_and_objects(setup_data.SceneName, DEPTH_WIDTH, DEPTH_HEIGHT)
+
+        # Initialize rigid_robot
+        rigid_robot, vel_control = init_robot(simulator, obj_templates_mgr, rigid_obj_mgr) 
+        setup_state = "wait"
+       
+    elif setup_state == "wait":
+        # point_transformer = PoseTransformer()
+        
+        setup_state = "set_position"
+        
+    elif setup_state == "set_position":
+        #add transfromer for start pos
+        # StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
+        
+        StartPosRos = setup_data.StartPoint
+        rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
+        start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
+        test_rot = tfs.ros_to_habitat_quaternion(start_rotation_array)
+        rigid_robot.rotation = test_rot
+        simulator.step_physics(TIME_STEP)
+        setup_state = "restart_move_base"
+        point_transformer = None
+        
+    elif setup_state == "restart_move_base":
+         #publish map update -> switch scene
+        #TODO restart move base??
+        scene_cmd = BasicAction()
+        scene_cmd.Action = "restart movebase"
+        scene_cmd.ActionIdx = 1
+        rospy.loginfo(scene_cmd)
+        scene_publisher.publish(scene_cmd)
+        setup_state = "update_map"
+        
+    elif setup_state == "update_map":
+        #publish map update -> switch scene
+        #TODO restart move base??
+        scene_cmd = BasicAction()
+        scene_cmd.Action = "update map"
+        scene_cmd.ActionIdx = 0
+        rospy.loginfo(scene_cmd)
+        scene_publisher.publish(scene_cmd)
+        setup_state = "publish_goal"              
+      
+    elif setup_state == "update_position":
+         #add transfromer for start pos
+        # StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
+        
         StartPosRos = setup_data.StartPoint
         rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
         start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
@@ -161,6 +222,8 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         # Reset state
         setup_state = None
         setup_data = None
+        
+    return simulator, agent , rigid_robot, vel_control
     
     
 
