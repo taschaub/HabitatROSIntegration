@@ -49,9 +49,9 @@ def display_top_down_map(sim):
     top_down_map = cv2.cvtColor(top_down_map, cv2.COLOR_BGR2GRAY)
     top_down_map = cv2.normalize(top_down_map, None, 0, 255, cv2.NORM_MINMAX)
 
-    save_image_and_yaml(top_down_map, '/home/aaron/catkin_ws/test_map.pgm', '/home/aaron/catkin_ws/test_map.yaml')
+    save_image_and_yaml(top_down_map, '/home/aaron/catkin_ws/test_map.pgm', '/home/aaron/catkin_ws/test_map.yaml', bounds)
 
-def save_image_and_yaml(top_down_map, pgm_filename, yaml_filename, resolution=0.05, origin=[0.0, 0.0, 0.0]):
+def save_image_and_yaml(top_down_map, pgm_filename, yaml_filename, bounds, resolution=0.05, origin=[0.0, 0.0, 0.0]):
     image = PilImage.fromarray(top_down_map)
     image.save(pgm_filename)
 
@@ -62,7 +62,9 @@ def save_image_and_yaml(top_down_map, pgm_filename, yaml_filename, resolution=0.
         origin=origin,
         negate=0,
         occupied_thresh=0.65,
-        free_thresh=0.196,
+        free_thresh=0.196
+        # lower_bound =  bounds[0][[0, 2]],
+        # upper_bound = bounds[1][[0, 2]]
     )
 
     with open(yaml_filename, 'w') as outfile:

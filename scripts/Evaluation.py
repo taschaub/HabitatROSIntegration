@@ -68,6 +68,7 @@ class Evaluation:
             return None, None
         
     def record_position(self):
+        
         # If there's a goal active, store the robot's position in the path
         if self.goal_active:
             trans, rot = self.get_transform()
@@ -76,9 +77,13 @@ class Evaluation:
                     self.episodes[self.current_episode_id]['path'] = []
                 # Save just the translation for now, but you can modify to save rotation as well if required.
                 self.episodes[self.current_episode_id]['path'].append(trans)
-       
+
+
+        #create copy so that i dont get runtime error "changed size during interation"
+        episodes_copy = dict(self.episodes)
+
         # Save path data for each episode (you can modify the way it's saved based on your needs)
-        for episode_id, data in self.episodes.items():
+        for episode_id, data in episodes_copy.items():
             if 'path' in data:
                 with open(f'/home/aaron/catkin_ws/src/publish_test/evaluation/path_data_episode_{episode_id}.csv', 'w') as f:
                     for pos in data['path']:

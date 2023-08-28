@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from shutil import move
 import rospy
 import habitat
 import habitat_sim
@@ -28,9 +29,9 @@ TOPIC_CAMERA_INFO = "camera_info"
 SCENE_PATH = "data/scene_datasets/mp3d/TbHJrupSAjP/TbHJrupSAjP.glb"
 
 
-def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher):
+def start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue):
     ht = Thread(target=habitat_sim_thread, 
-                args=(SCENE_PATH, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher))
+                args=(SCENE_PATH, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue))
     ht.start()
 
 def main():
@@ -38,6 +39,7 @@ def main():
 
     message_queue = Queue()
     setup_queue = Queue()
+    move_base_queue = Queue()
 
 
     depth_publisher = rospy.Publisher(TOPIC_DEPTH_IMAGE, RosImage, queue_size=10)
@@ -50,7 +52,7 @@ def main():
 
     tf_broadcaster = tf2_ros.TransformBroadcaster()
 
-    start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher)
+    start_habitat_thread(setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue)
 
     def callback_cmd_vel(data):
         print("Action received:", data)
@@ -60,9 +62,15 @@ def main():
         print("New setup message received")
         setup_queue.put(data)
         print(data)
+        
+    def callback_move_base_confirm(data):
+        print("New setup message received")
+        move_base_queue.put(data)
+        print(data)
 
     rospy.Subscriber(TOPIC_CMD_VEL, Twist, callback_cmd_vel)
     rospy.Subscriber(TOPIC_SETUP, SetupHabitat , callback_setup)
+    rospy.Subscriber("confirm_move_base", BasicAction , callback_move_base_confirm)
     print("loaded")
     rospy.spin()
 

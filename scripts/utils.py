@@ -3,6 +3,11 @@ import numpy as np
 from sensor_msgs.msg import LaserScan
 import cv2
 import habitat_sim
+from actionlib_msgs.msg import GoalStatusArray
+from publish_test.msg import BasicAction
+
+
+
 
 
 def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angle_min=-np.pi, angle_max=np.pi, range_min=0.0, range_max=10.0):
@@ -236,3 +241,46 @@ def discrete_vel_control(sim, action_name, vel_control, rigid_robot, time_step):
         # Display the depth image
         # cv2.imshow("Depth Image", depth_image)
         cv2.waitKey(1)
+
+
+received_message = None
+subscriber = None
+
+def callback(data):
+    global received_message
+    
+    received_message = True
+    # Unregister the subscriber after receiving a message
+    subscriber.unregister()
+
+def temporary_subscribe():
+    global subscriber
+    
+    # Start the subscriber
+    subscriber = rospy.Subscriber("/move_base/status", GoalStatusArray, callback)
+    
+    # Wait until a message is received or a timeout occurs
+    timeout = rospy.Duration(10)  # 10 seconds
+    start_time = rospy.Time.now()
+    while not received_message and (rospy.Time.now() - start_time) < timeout:
+        rospy.sleep(0.1)
+
+    # If a message was received, the callback would have unregistered the subscriber.
+    # Otherwise, unregister it now after the timeout.
+    if not received_message:
+        subscriber.unregister()
+
+    # Continue with your program
+    if received_message:
+        # print(f"Received message: {received_message}")
+        # confirm_pub = rospy.Publisher('/confirm_move_base', BasicAction, queue_size=10)
+        # confirm_cmd = BasicAction()
+        # confirm_cmd.Action = "OK"
+        # confirm_cmd.ActionIdx = 2
+        # rospy.loginfo(confirm_cmd)
+        # confirm_pub.publish(confirm_cmd)
+        # confirm_pub.unregister()
+        print("test")
+
+    else:
+        print("Did not receive any message within the timeout period.")

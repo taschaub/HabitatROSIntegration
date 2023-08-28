@@ -20,7 +20,7 @@ from EpisodeManager import PoseTransformer
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
 import transformations as tfs
-from utils import make_configuration, init_robot, print_screen, discrete_vel_control
+from utils import make_configuration, init_robot, print_screen, discrete_vel_control, temporary_subscribe
 
 # Constants
 DEPTH_HEIGHT = 480
@@ -33,7 +33,7 @@ setup_data = None
 current_scene = None
 point_transformer = None
 
-def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher):
+def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue):
     """Main function for the habitat simulator thread."""
 
     # Initialize simulator, agents and objects
@@ -46,7 +46,7 @@ def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_p
     ego_map = GTEgoMap(depth_H=DEPTH_HEIGHT, depth_W=DEPTH_WIDTH)
 
     # Start simulation
-    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher)
+    start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue)
 
 
 
@@ -70,7 +70,7 @@ def init_simulator_and_objects(scene, depth_width, depth_height):
 
 
 
-def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher):
+def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_queue, message_queue, depth_publisher,rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue):
     """Start the simulation and main loop."""
 
     observations = simulator.get_sensor_observations()
@@ -91,7 +91,7 @@ def start_simulation(simulator, agent, rigid_robot, vel_control, ego_map, setup_
         # if not setup_queue.empty():
         #     current_time.nsecs +=1000
         #     process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time)  
-        simulator, agent , rigid_robot, vel_control = process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control)  
+        simulator, agent , rigid_robot, vel_control = process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control, move_base_queue)  
 
 
             
@@ -133,7 +133,7 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, 
 
     apply_velocity_control(simulator, rigid_robot, vel_control, crash_publisher)
     
-def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control):
+def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control, move_base_queue):
     #in order to start an episode correctly we first set the starting point and in the next iteration we set the goal
     global setup_state, setup_data, current_scene, point_transformer
 
@@ -162,6 +162,9 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
     elif setup_state == "wait":
         point_transformer = PoseTransformer()
         
+        setup_state = "tf_available"
+        
+    elif setup_state == "tf_available":        
         setup_state = "set_position"
         
     elif setup_state == "set_position":
@@ -175,17 +178,7 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         rigid_robot.rotation = test_rot
         simulator.step_physics(TIME_STEP)
         setup_state = "update_map"
-        
-    elif setup_state == "restart_move_base":
-         #publish map update -> switch scene
-        #TODO restart move base??
-        scene_cmd = BasicAction()
-        scene_cmd.Action = "restart movebase"
-        scene_cmd.ActionIdx = 1
-        rospy.loginfo(scene_cmd)
-        # scene_publisher.publish(scene_cmd)
-        setup_state = "simple_wait"
-        
+   
     elif setup_state == "update_map":
         #publish map update -> switch scene
         #TODO restart move base??
@@ -194,13 +187,35 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         scene_cmd.ActionIdx = 0
         rospy.loginfo(scene_cmd)
         scene_publisher.publish(scene_cmd)
-        setup_state = "restart_move_base"              
+        setup_state = "restart_move_base"  
+            
+    elif setup_state == "restart_move_base":
+         #publish map update -> switch scene
+        #TODO restart move base??
+        scene_cmd = BasicAction()
+        scene_cmd.Action = "restart movebase"
+        scene_cmd.ActionIdx = 1
+        rospy.loginfo(scene_cmd)
+        scene_publisher.publish(scene_cmd)
+        setup_state = "prewait"
+        
+    elif setup_state == "prewait":
+        setup_state = "move_base_check"
+        
+    elif setup_state == "move_base_check":
+        if not move_base_queue.empty():
+            move_base_queue.get()
+            move_base_queue.queue.clear()
+            setup_state = "update_position"
       
     elif setup_state == "simple_wait":
+        setup_state = "simple_wait2"
+        
+    elif setup_state == "simple_wait2":
         setup_state = "update_position"
 
     elif setup_state == "update_position":
-         #add transfromer for start pos
+        #add transfromer for start po        
         StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
         
         # StartPosRos = setup_data.StartPoint
@@ -264,3 +279,5 @@ def check_for_collision(previous_rigid_state, end_pos, target_rigid_state, crash
         crash_cmd.ActionIdx = 0
         rospy.loginfo(crash_cmd)
         crash_publisher.publish(crash_cmd)
+        
+    
