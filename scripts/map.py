@@ -35,14 +35,14 @@ def display_top_down_map(sim):
     agent_pos_int = np.round(agent_pos_grid).astype(np.int32)
     agent_pos_int_swapped = [agent_pos_int[1],agent_pos_int[0]]
 
-    top_down_map_with_agent = maps.draw_agent(
-        top_down_map,
-        agent_pos_int_swapped,
-        agent_angle,
-        agent_radius_px=8,  # Adjust the agent_radius_px for the size of the agent marker
-        # agent_color=(0, 0, 255)
-    )
-    cv2.imwrite("top_down_map.png", top_down_map_with_agent)
+    # top_down_map_with_agent = maps.draw_agent(
+    #     top_down_map,
+    #     agent_pos_int_swapped,
+    #     agent_angle,
+    #     agent_radius_px=8,  # Adjust the agent_radius_px for the size of the agent marker
+    #     # agent_color=(0, 0, 255)
+    # )
+    cv2.imwrite("top_down_map.png", top_down_map)
     #cv2.imshow("Top Down Map", top_down_map_with_agent)
     cv2.waitKey(1)
     

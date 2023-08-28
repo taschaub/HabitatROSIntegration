@@ -26,6 +26,8 @@ class PoseTransformer:
 class EpisodeManager:
     def __init__(self):
         # Initialize PoseTransformer
+        rospy.sleep(1)  # Delay for 1 second so that first message is sent
+
         self.transformer = PoseTransformer()
         
         # Load episode data from JSON file
@@ -69,7 +71,7 @@ class EpisodeManager:
         # self.setup_msg.EpisodeId = self.current_episode['episode']
         self.setup_msg.SceneName = self.current_episode['scene']
         
-        self.setup_msg.StartPoint = start_pose_transformed
+        self.setup_msg.StartPoint = start_pose #_transformed
         self.setup_msg.GoalPoint = goal_pose #_transformed
 
         # Publish SetupHabitat message

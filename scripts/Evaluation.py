@@ -19,12 +19,15 @@ class Evaluation:
         # Initialize subscribers
         rospy.Subscriber("move_base/status", GoalStatusArray, self.move_base_status_callback)
         rospy.Subscriber("crash_detect",  BasicAction, self.collision_callback)
+        self.run_time_pub = rospy.Publisher('run_time', BasicAction, queue_size=10)
 
         # Initialize data structures
         self.current_episode_id = 0  # increment every time a new goal is set
         self.episodes = {}  # Each episode's data is stored in a dict with keys 'start_time', 'end_time', 'collisions'
         
         self.goal_active = False
+        
+    
 
     def move_base_status_callback(self, msg):
         # Check the latest status message
@@ -47,6 +50,14 @@ class Evaluation:
                 print("goal reached")
                 self.goal_active = False
                 self.episodes[self.current_episode_id]['end_time'] = rospy.Time.now().to_sec()
+                self.jump_to_next_episode()
+                
+            elif status == 4 and self.goal_active:  # If the goal is aborted
+                print("goal aborted")
+                self.goal_active = False
+                self.episodes[self.current_episode_id]['end_time'] = rospy.Time.now().to_sec()
+                self.episodes[self.current_episode_id]['aborted'] = True  # Add this line to record the aborted status
+                self.jump_to_next_episode()
 
     def get_transform(self):
         # This method will get the transform from odom to base_link
@@ -86,6 +97,14 @@ class Evaluation:
         # Save DataFrame to a CSV file
         df.to_csv('/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_data.csv')
 
+    def jump_to_next_episode(self):
+        move_cmd = BasicAction()
+        move_cmd.Action = "STOP"
+        move_cmd.ActionIdx = 0
+        rospy.loginfo(move_cmd)
+        self.run_time_pub.publish(move_cmd)
+        
+        
     def compute_metrics(self):
         # TODO: Compute metrics based on self.episodes
         pass

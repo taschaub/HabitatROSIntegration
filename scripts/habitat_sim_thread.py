@@ -142,11 +142,12 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         # Start new setup
         setup_data = setup_queue.get()
         setup_state = "update_position"
-        if current_scene is not setup_data.SceneName:
+        if current_scene != setup_data.SceneName:
             current_scene = setup_data.SceneName
             setup_state = "switch_scene"
-        # else:
-        #     point_transformer = PoseTransformer()
+        else:
+            point_transformer = PoseTransformer()
+            setup_state = "simple_wait"
 
     if setup_state == "switch_scene":
         #set false so that the whole program doesnt stop
@@ -159,22 +160,21 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         setup_state = "wait"
        
     elif setup_state == "wait":
-        # point_transformer = PoseTransformer()
+        point_transformer = PoseTransformer()
         
         setup_state = "set_position"
         
     elif setup_state == "set_position":
         #add transfromer for start pos
-        # StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
+        StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
         
-        StartPosRos = setup_data.StartPoint
+        # StartPosRos = setup_data.StartPoint
         rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
         start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
         test_rot = tfs.ros_to_habitat_quaternion(start_rotation_array)
         rigid_robot.rotation = test_rot
         simulator.step_physics(TIME_STEP)
-        setup_state = "restart_move_base"
-        point_transformer = None
+        setup_state = "update_map"
         
     elif setup_state == "restart_move_base":
          #publish map update -> switch scene
@@ -183,8 +183,8 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         scene_cmd.Action = "restart movebase"
         scene_cmd.ActionIdx = 1
         rospy.loginfo(scene_cmd)
-        scene_publisher.publish(scene_cmd)
-        setup_state = "update_map"
+        # scene_publisher.publish(scene_cmd)
+        setup_state = "simple_wait"
         
     elif setup_state == "update_map":
         #publish map update -> switch scene
@@ -194,19 +194,24 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         scene_cmd.ActionIdx = 0
         rospy.loginfo(scene_cmd)
         scene_publisher.publish(scene_cmd)
-        setup_state = "publish_goal"              
+        setup_state = "restart_move_base"              
       
+    elif setup_state == "simple_wait":
+        setup_state = "update_position"
+
     elif setup_state == "update_position":
          #add transfromer for start pos
-        # StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
+        StartPosRos = point_transformer.transform_pose(setup_data.StartPoint)
         
-        StartPosRos = setup_data.StartPoint
+        # StartPosRos = setup_data.StartPoint
         rigid_robot.translation = tfs.position_ros_to_hab(StartPosRos.position)
         start_rotation_array = tfs.ros_quat_to_ros_array(StartPosRos.orientation)
         test_rot = tfs.ros_to_habitat_quaternion(start_rotation_array)
         rigid_robot.rotation = test_rot
         simulator.step_physics(TIME_STEP)
         setup_state = "publish_goal"
+        point_transformer = None
+
 
     # elif setup_state == "publish_transform":
     #     tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
@@ -219,6 +224,7 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         goal_msg.header.frame_id = "map"
         goal_msg.pose = setup_data.GoalPoint
         goal_publisher.publish(goal_msg)
+        
         # Reset state
         setup_state = None
         setup_data = None
