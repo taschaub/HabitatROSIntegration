@@ -31,6 +31,7 @@ def switch_scene_callback(msg):
 
     if msg.ActionIdx == 0:
         # Restart map_server
+        print("received_restart map")
         if map_server_process:
             os.killpg(os.getpgid(map_server_process.pid), signal.SIGTERM)
         map_yaml_path = "/home/aaron/catkin_ws/test_map.yaml"

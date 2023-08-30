@@ -7,8 +7,11 @@ from geometry_msgs.msg import PoseStamped
 from publish_test.msg import BasicAction
 import pandas as pd
 import pickle
+import os
 
 class Evaluation:
+    base_directory = '/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_rl02/'  # Class variable for the base directory
+    
     def __init__(self):
         # Initialize node
         rospy.init_node('evaluation')
@@ -81,11 +84,14 @@ class Evaluation:
 
         #create copy so that i dont get runtime error "changed size during interation"
         episodes_copy = dict(self.episodes)
+        
+        if not os.path.exists(Evaluation.base_directory):  # Step 2: Check if the directory exists
+            os.makedirs(Evaluation.base_directory)
 
         # Save path data for each episode (you can modify the way it's saved based on your needs)
         for episode_id, data in episodes_copy.items():
             if 'path' in data:
-                with open(f'/home/aaron/catkin_ws/src/publish_test/evaluation/path_data_episode_{episode_id}.csv', 'w') as f:
+                with open(f'{Evaluation.base_directory}path_data_episode_{episode_id}.csv', 'w') as f:
                     for pos in data['path']:
                         f.write(f"{pos[0]},{pos[1]}\n")
     
@@ -100,7 +106,7 @@ class Evaluation:
         df = pd.DataFrame.from_dict(self.episodes, orient='index')
 
         # Save DataFrame to a CSV file
-        df.to_csv('/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_data.csv')
+        df.to_csv('{Evaluation.base_directory}evaluation_data.csv')
 
     def jump_to_next_episode(self):
         move_cmd = BasicAction()

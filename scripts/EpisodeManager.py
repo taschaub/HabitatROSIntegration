@@ -31,7 +31,7 @@ class EpisodeManager:
         self.transformer = PoseTransformer()
         
         # Load episode data from JSON file
-        with open('/home/aaron/catkin_ws/src/publish_test/scripts/episodes.json') as f:
+        with open('/home/aaron/catkin_ws/src/publish_test/evaluation/episodes/narrow_episodes.json') as f:
             self.episodes = json.load(f)
 
         # Initialize current episode

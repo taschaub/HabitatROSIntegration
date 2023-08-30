@@ -231,8 +231,11 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
     # elif setup_state == "publish_transform":
     #     tfs.publish_odom_baselink_transform(simulator.agents[0].state, tf_broadcaster, current_time)
     #     setup_state = "publish_goal"
-
     elif setup_state == "publish_goal":
+        setup_state = "publish_goal2"
+
+
+    elif setup_state == "publish_goal2":
         # Publishing the goal
         goal_msg = PoseStamped()
         goal_msg.header.stamp = rospy.Time.now()
