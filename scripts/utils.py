@@ -284,3 +284,11 @@ def temporary_subscribe():
 
     else:
         print("Did not receive any message within the timeout period.")
+        
+import re
+
+def extract_scene_name(s):
+    match = re.search(r'data/scene_datasets/mp3d/([^/]+)/\1.glb', s)
+    return match.group(1) if match else None
+
+

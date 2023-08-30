@@ -20,7 +20,7 @@ from EpisodeManager import PoseTransformer
 from map import display_top_down_map
 from publishers import publish_rgb_image, publish_depth_image_and_camera_info
 import transformations as tfs
-from utils import make_configuration, init_robot, print_screen, discrete_vel_control, temporary_subscribe
+from utils import make_configuration, init_robot, print_screen, discrete_vel_control, temporary_subscribe, extract_scene_name
 
 # Constants
 DEPTH_HEIGHT = 480
@@ -31,6 +31,7 @@ EPSILON = 1e-5
 setup_state = None
 setup_data = None
 current_scene = None
+short_scene = None
 point_transformer = None
 
 def habitat_sim_thread(scene, setup_queue, message_queue, depth_publisher, rgb_publisher, camera_info_publisher, tf_broadcaster, goal_publisher, crash_publisher, scene_publisher, move_base_queue):
@@ -135,7 +136,7 @@ def process_cmd_vel_message(message_queue, rigid_robot, vel_control, simulator, 
     
 def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, tf_broadcaster, current_time, scene_publisher, agent, vel_control, move_base_queue):
     #in order to start an episode correctly we first set the starting point and in the next iteration we set the goal
-    global setup_state, setup_data, current_scene, point_transformer
+    global setup_state, setup_data, current_scene, short_scene, point_transformer
 
     if setup_state is None and not setup_queue.empty():
 
@@ -144,6 +145,7 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         setup_state = "update_position"
         if current_scene != setup_data.SceneName:
             current_scene = setup_data.SceneName
+            short_scene = extract_scene_name(current_scene)
             setup_state = "switch_scene"
         else:
             point_transformer = PoseTransformer()
@@ -183,7 +185,7 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
         #publish map update -> switch scene
         #TODO restart move base??
         scene_cmd = BasicAction()
-        scene_cmd.Action = "update map"
+        scene_cmd.Action = short_scene
         scene_cmd.ActionIdx = 0
         rospy.loginfo(scene_cmd)
         scene_publisher.publish(scene_cmd)
@@ -193,7 +195,7 @@ def process_setup_message(setup_queue, rigid_robot, simulator, goal_publisher, t
          #publish map update -> switch scene
         #TODO restart move base??
         scene_cmd = BasicAction()
-        scene_cmd.Action = "restart movebase"
+        scene_cmd.Action = "short_scene"
         scene_cmd.ActionIdx = 1
         rospy.loginfo(scene_cmd)
         scene_publisher.publish(scene_cmd)

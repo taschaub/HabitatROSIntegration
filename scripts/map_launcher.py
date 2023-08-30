@@ -9,6 +9,7 @@ from utils import temporary_subscribe
 map_server_process = None
 move_base_process = None
 confirm_pub = None
+scene_name = None
 
 def kill_subprocesses():
     global map_server_process, move_base_process
@@ -25,16 +26,17 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 def switch_scene_callback(msg):
-    global map_server_process, move_base_process
+    global map_server_process, move_base_process, scene_name
     
     # Logic to switch scene in Habitat based on msg content
 
     if msg.ActionIdx == 0:
         # Restart map_server
+        scene_name = msg.Action
         print("received_restart map")
         if map_server_process:
             os.killpg(os.getpgid(map_server_process.pid), signal.SIGTERM)
-        map_yaml_path = "/home/aaron/catkin_ws/test_map.yaml"
+        map_yaml_path = f"/home/aaron/catkin_ws/src/publish_test/evaluation/maps/{scene_name}.yaml"
         map_server_process = subprocess.Popen(['rosrun', 'map_server', 'map_server', map_yaml_path], preexec_fn=os.setsid)
 
     elif msg.ActionIdx == 1:
@@ -67,7 +69,7 @@ def switch_scene_callback(msg):
         # move_base_process = subprocess.Popen(['roslaunch', 'arena_bringup', 'move_base_rosnav.launch'], preexec_fn=os.setsid)
 
 def main():
-    global map_server_process, move_base_process , confirm_pub
+    global map_server_process, move_base_process , confirm_pub, scene_name
 
     rospy.init_node('map_launcher')
     confirm_pub = rospy.Publisher('confirm_move_base', BasicAction, queue_size=10)

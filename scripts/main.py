@@ -24,14 +24,14 @@ TOPIC_CRASH = "switch_scene"
 TOPIC_DEPTH_IMAGE = "depth_image"
 TOPIC_RGB_IMAGE = "rgb_image"
 TOPIC_CAMERA_INFO = "camera_info"
-# SCENE_PATH = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+SCENE_PATH = "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
 # SCENE_PATH = "data/scene_datasets/mp3d/1LXtFkjw3qL/1LXtFkjw3qL.glb"
 # SCENE_PATH = "data/scene_datasets/mp3d/TbHJrupSAjP/TbHJrupSAjP.glb"
 # bad laser SCENE_PATH = "data/scene_datasets/mp3d/2n8kARJN3HM/2n8kARJN3HM.glb"
 # SCENE_PATH = ""
 # SCENE_PATH = "data/scene_datasets/mp3d/5LpN3gDmAk7/5LpN3gDmAk7.glb"# 2 etagen
 # SCENE_PATH = "data/scene_datasets/mp3d/8WUmhLawc2A/8WUmhLawc2A.glb"
-SCENE_PATH = "data/scene_datasets/mp3d/759xd9YjKW5/759xd9YjKW5.glb"
+# SCENE_PATH = "data/scene_datasets/mp3d/759xd9YjKW5/759xd9YjKW5.glb"
 
 
 
