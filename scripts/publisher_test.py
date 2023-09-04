@@ -12,7 +12,7 @@ import sys, termios, tty, os
 
 
 def talker():
-    pub = rospy.Publisher('confirm_move_base', BasicAction, queue_size=10)
+    pub = rospy.Publisher('run_time', BasicAction, queue_size=10)
     rospy.init_node('talker', anonymous=True)
     rate = rospy.Rate(10)  # 10hz
 

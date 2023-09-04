@@ -10,7 +10,7 @@ import pickle
 import os
 
 class Evaluation:
-    base_directory = '/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_rl02/'  # Class variable for the base directory
+    base_directory = '/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_teb4/'  # Class variable for the base directory
     
     def __init__(self):
         # Initialize node
@@ -22,7 +22,7 @@ class Evaluation:
         # Initialize subscribers
         rospy.Subscriber("move_base/status", GoalStatusArray, self.move_base_status_callback)
         rospy.Subscriber("crash_detect",  BasicAction, self.collision_callback)
-        self.run_time_pub = rospy.Publisher('run_time', BasicAction, queue_size=10)
+        self.eval_ready_pub = rospy.Publisher('eval_ready', BasicAction, queue_size=10)
 
         # Initialize data structures
         self.current_episode_id = 0  # increment every time a new goal is set
@@ -54,6 +54,7 @@ class Evaluation:
                 self.goal_active = False
                 self.episodes[self.current_episode_id]['end_time'] = rospy.Time.now().to_sec()
                 self.jump_to_next_episode()
+                self.save_data()
                 
             elif status == 4 and self.goal_active:  # If the goal is aborted
                 print("goal aborted")
@@ -61,11 +62,12 @@ class Evaluation:
                 self.episodes[self.current_episode_id]['end_time'] = rospy.Time.now().to_sec()
                 self.episodes[self.current_episode_id]['aborted'] = True  # Add this line to record the aborted status
                 self.jump_to_next_episode()
+                self.save_data()
 
     def get_transform(self):
         # This method will get the transform from odom to base_link
         try:
-            (trans, rot) = self.listener.lookupTransform('odom', 'base_link', rospy.Time(0))
+            (trans, rot) = self.listener.lookupTransform('map', 'base_footprint', rospy.Time(0))
             return trans, rot
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             return None, None
@@ -104,16 +106,16 @@ class Evaluation:
     def save_data(self):
         # Create a DataFrame from self.episodes
         df = pd.DataFrame.from_dict(self.episodes, orient='index')
-
+        
         # Save DataFrame to a CSV file
-        df.to_csv('{Evaluation.base_directory}evaluation_data.csv')
+        df.to_csv(f'{Evaluation.base_directory}evaluation_data.csv')
 
     def jump_to_next_episode(self):
         move_cmd = BasicAction()
         move_cmd.Action = "STOP"
         move_cmd.ActionIdx = 0
         rospy.loginfo(move_cmd)
-        self.run_time_pub.publish(move_cmd)
+        self.eval_ready_pub.publish(move_cmd)
         
         
     def compute_metrics(self):

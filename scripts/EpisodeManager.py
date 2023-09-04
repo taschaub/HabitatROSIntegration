@@ -31,7 +31,7 @@ class EpisodeManager:
         self.transformer = PoseTransformer()
         
         # Load episode data from JSON file
-        with open('/home/aaron/catkin_ws/src/publish_test/evaluation/episodes/narrow_episodes.json') as f:
+        with open('/home/aaron/catkin_ws/src/publish_test/evaluation/episodes/combined_episodes.json') as f:
             self.episodes = json.load(f)
 
         # Initialize current episode
@@ -40,13 +40,13 @@ class EpisodeManager:
 
         # Initialize ROS publishers and subscribers
         self.setup_pub = rospy.Publisher('setup_habitat', SetupHabitat, queue_size=10)
-        self.run_time_sub = rospy.Subscriber('run_time', BasicAction, self.run_time_callback)
+        self.eval_ready_sub = rospy.Subscriber('eval_ready', BasicAction, self.eval_ready_callback)
 
         # Initialize SetupHabitat message
         self.setup_msg = SetupHabitat()
 
-    def run_time_callback(self, msg):
-        # If run_time is end time, move to the next episode
+    def eval_ready_callback(self, msg):
+        # If eval_ready is end time, move to the next episode
         if msg.ActionIdx == 0:
             self.episode_id += 1
             if self.episode_id < len(self.episodes):

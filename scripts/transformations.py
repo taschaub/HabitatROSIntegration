@@ -50,7 +50,8 @@ def position_hab_to_ros(position_hab):
     position_ros = geometry_msgs.msg.Vector3()
     position_ros.x = position_hab[0]
     position_ros.y = -position_hab[2]
-    position_ros.z = position_hab[1]
+    #pretend agent is always on the same height, to test if local costmap is affected
+    position_ros.z = 0 #position_hab[1]
     return position_ros
     
 def position_ros_to_hab(position_ros):
@@ -58,39 +59,39 @@ def position_ros_to_hab(position_ros):
     return position_hab
 
 
-def publish_transforms(agent_state, tf_broadcaster, current_time):
-    transform = geometry_msgs.msg.TransformStamped()
+# def publish_transforms(agent_state, tf_broadcaster, current_time):
+#     transform = geometry_msgs.msg.TransformStamped()
 
-    # Set the frame IDs
-    transform.header.frame_id = "map"
-    transform.child_frame_id = "base_link"
+#     # Set the frame IDs
+#     transform.header.frame_id = "map"
+#     transform.child_frame_id = "base_footprint"
 
-    # Set the translation
-    transform.transform.translation.x = agent_state.position[0]
-    transform.transform.translation.y = agent_state.position[1]
-    transform.transform.translation.z = agent_state.position[2]
+#     # Set the translation
+#     transform.transform.translation.x = agent_state.position[0]
+#     transform.transform.translation.y = agent_state.position[1]
+#     transform.transform.translation.z = agent_state.position[2]
 
-    # Set the rotation
-    quaternion = (agent_state.rotation.x, agent_state.rotation.y, agent_state.rotation.z, agent_state.rotation.w)
-    euler_angles = tf.transformations.euler_from_quaternion(quaternion)
-    quaternion = tf.transformations.quaternion_from_euler(euler_angles[0], euler_angles[1], euler_angles[2])
-    transform.transform.rotation.x = quaternion[0]
-    transform.transform.rotation.y = quaternion[1]
-    transform.transform.rotation.z = quaternion[2]
-    transform.transform.rotation.w = quaternion[3]
+#     # Set the rotation
+#     quaternion = (agent_state.rotation.x, agent_state.rotation.y, agent_state.rotation.z, agent_state.rotation.w)
+#     euler_angles = tf.transformations.euler_from_quaternion(quaternion)
+#     quaternion = tf.transformations.quaternion_from_euler(euler_angles[0], euler_angles[1], euler_angles[2])
+#     transform.transform.rotation.x = quaternion[0]
+#     transform.transform.rotation.y = quaternion[1]
+#     transform.transform.rotation.z = quaternion[2]
+#     transform.transform.rotation.w = quaternion[3]
 
-    # Set the timestamp
-    transform.header.stamp = current_time
+#     # Set the timestamp
+#     transform.header.stamp = current_time
 
-    # Publish the transform
-    tf_broadcaster.sendTransform(transform)
+#     # Publish the transform
+#     tf_broadcaster.sendTransform(transform)
 
 def publish_odom_baselink_transform(agent_state, tf_broadcaster, current_time,noise_std_dev=0.1):
     transform = geometry_msgs.msg.TransformStamped()
 
     # Set the frame IDs
     transform.header.frame_id = "odom"
-    transform.child_frame_id = "base_link"
+    transform.child_frame_id = "base_footprint"
     
     agent_pos = agent_state.position
     agent_rot = agent_state.rotation
@@ -154,7 +155,7 @@ def publish_base_link_to_scan_transform(tf_broadcaster, current_time):
     transform = geometry_msgs.msg.TransformStamped()
 
     # Set the frame IDs
-    transform.header.frame_id = "base_link"
+    transform.header.frame_id = "base_footprint"
     transform.child_frame_id = "scan"
 
     # Set the translation (this depends on where the scanner is mounted on the robot)
