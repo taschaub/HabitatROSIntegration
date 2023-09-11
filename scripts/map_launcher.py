@@ -44,7 +44,7 @@ def switch_scene_callback(msg):
         if move_base_process:
             os.killpg(os.getpgid(move_base_process.pid), signal.SIGTERM)
         # move_base_process = subprocess.Popen(['roslaunch', 'my_robot_navigation', 'move_base_turtle.launch'], preexec_fn=os.setsid)
-        move_base_process = subprocess.Popen(['roslaunch', 'arena_bringup', 'move_base_teb.launch'], preexec_fn=os.setsid)
+        move_base_process = subprocess.Popen(['roslaunch', 'arena_bringup', 'move_base_rosnav.launch'], preexec_fn=os.setsid)
 
         temporary_subscribe()
         confirm_cmd = BasicAction()
@@ -84,7 +84,7 @@ def main():
     initial_map_path = "/home/aaron/catkin_ws/test_map.yaml"
     map_server_process = subprocess.Popen(['rosrun', 'map_server', 'map_server', initial_map_path], preexec_fn=os.setsid)
     # move_base_process = subprocess.Popen(['roslaunch', 'my_robot_navigation', 'move_base_turtle.launch'], preexec_fn=os.setsid)
-    move_base_process = subprocess.Popen(['roslaunch', 'arena_bringup', 'move_base_teb.launch'], preexec_fn=os.setsid)
+    move_base_process = subprocess.Popen(['roslaunch', 'arena_bringup', 'move_base_rosnav.launch'], preexec_fn=os.setsid)
 
     rospy.spin()
 

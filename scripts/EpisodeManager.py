@@ -31,7 +31,7 @@ class EpisodeManager:
         self.transformer = PoseTransformer()
         
         # Load episode data from JSON file
-        with open('/home/aaron/catkin_ws/src/publish_test/evaluation/episodes/combined_episodes.json') as f:
+        with open('/home/aaron/catkin_ws/src/publish_test/evaluation/episodes/normal_rotated.json') as f: # combined_episodes_inverted_again
             self.episodes = json.load(f)
 
         # Initialize current episode

@@ -10,7 +10,8 @@ import pickle
 import os
 
 class Evaluation:
-    base_directory = '/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_teb4/'  # Class variable for the base directory
+    evaluation_run_name = 'rosnav9'
+    base_directory = f'/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_{evaluation_run_name}/'  # Class variable for the base directory
     
     def __init__(self):
         # Initialize node
@@ -93,7 +94,7 @@ class Evaluation:
         # Save path data for each episode (you can modify the way it's saved based on your needs)
         for episode_id, data in episodes_copy.items():
             if 'path' in data:
-                with open(f'{Evaluation.base_directory}path_data_episode_{episode_id}.csv', 'w') as f:
+                with open(f'{Evaluation.base_directory}path_data_{Evaluation.evaluation_run_name}_episode_{episode_id}.csv', 'w') as f:
                     for pos in data['path']:
                         f.write(f"{pos[0]},{pos[1]}\n")
     
@@ -108,7 +109,7 @@ class Evaluation:
         df = pd.DataFrame.from_dict(self.episodes, orient='index')
         
         # Save DataFrame to a CSV file
-        df.to_csv(f'{Evaluation.base_directory}evaluation_data.csv')
+        df.to_csv(f'{Evaluation.base_directory}{Evaluation.evaluation_run_name}evaluation_data.csv')
 
     def jump_to_next_episode(self):
         move_cmd = BasicAction()
