@@ -1,49 +1,73 @@
+"""
+ROS module to publish camera and depth images, and camera information from observations.
+"""
+
 import rospy
 import math
 import numpy as np
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image as RosImage, CameraInfo, LaserScan
-
+from sensor_msgs.msg import Image as RosImage, CameraInfo
 
 def publish_rgb_image(observations, rgb_image_publisher):
+    """
+    Publishes RGB images from given observations to the specified publisher.
+    
+    Parameters:
+    - observations: Dictionary containing camera data.
+    - rgb_image_publisher: ROS publisher for RGB images.
+    """
     bridge = CvBridge()
     timestamp = rospy.Time.now()
 
     # Convert RGB data to a format suitable for saving as an image
     rgb_data = observations["camera"]
-    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data)#, encoding="8UC4")
+    rgb_image_msg = bridge.cv2_to_imgmsg(rgb_data)
     rgb_image_msg.header.stamp = timestamp
 
     # Publish the RGB image
     rgb_image_publisher.publish(rgb_image_msg)
 
 def publish_depth_image_and_camera_info(sim, observations, depth_image_publisher, camera_info_publisher):
-    # Your code for generating the depth image goes here
-    # ...
+    """
+    Publishes depth images and camera information from given observations and simulator.
+    
+    Parameters:
+    - sim: Simulation environment.
+    - observations: Dictionary containing depth data.
+    - depth_image_publisher: ROS publisher for depth images.
+    - camera_info_publisher: ROS publisher for camera information.
+    """
     timestamp = rospy.Time.now()
     publish_depth_image(observations, depth_image_publisher, timestamp)
     publish_camera_info(sim, camera_info_publisher, timestamp)
     
 def publish_depth_image(observations, depth_image_publisher, timestamp):
+    """
+    Publishes depth images from given observations to the specified publisher.
+    
+    Parameters:
+    - observations: Dictionary containing depth data.
+    - depth_image_publisher: ROS publisher for depth images.
+    - timestamp: ROS timestamp for the message header.
+    """
     bridge = CvBridge()
 
-    # Convert depth data to a format suitable for saving as an image
-    #depth_data = (observations["depth"] * 255).astype(np.uint8)
-    #depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="mono8")
-
-    # Keep depth data as floating point values representing distance in meters
+    # Convert depth data to a format suitable for saving as an image with floating point values
     depth_data = observations["depth"].astype(np.float32)
-    # max_val =depth_data.max()
-    # depth_data/=16.3
-    # depth_data*=15
     depth_image_msg = bridge.cv2_to_imgmsg(depth_data, encoding="32FC1")
-    # Publish the depth image
+    
     depth_image_msg.header.stamp = timestamp
     depth_image_publisher.publish(depth_image_msg)
 
 def publish_camera_info(sim, camera_info_publisher, timestamp):
+    """
+    Publishes camera information from the simulation environment to the specified publisher.
     
-    #TODO adjust to habitat im
+    Parameters:
+    - sim: Simulation environment.
+    - camera_info_publisher: ROS publisher for camera information.
+    - timestamp: ROS timestamp for the message header.
+    """
     camera_config = sim._sensors["camera"]._spec
     camera_config.width = 480
     camera_config.height = 480
