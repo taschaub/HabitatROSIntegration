@@ -7,7 +7,7 @@ import habitat
 # from habitat.config.default import get_config
 import random
 from habitat.core.simulator import AgentState
-from publish_test.msg import SetupHabitat
+from HabitatRosIntegration.msg import SetupHabitat
 import sys, termios, tty, os
 from geometry_msgs.msg import Point, Quaternion
 

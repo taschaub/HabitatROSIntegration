@@ -4,7 +4,7 @@ import habitat_sim
 from gtego_map import GTEgoMap
 from map_server import MapServer
 from geometry_msgs.msg import PoseStamped
-from publish_test.msg import BasicAction
+from HabitatRosIntegration.msg import BasicAction
 
 
 

@@ -4,7 +4,7 @@ import tf
 from geometry_msgs.msg import PoseStamped, Point, Quaternion, Pose
 from nav_msgs.msg import Path
 from std_msgs.msg import String
-from publish_test.msg import SetupHabitat, BasicAction
+from HabitatRosIntegration.msg import SetupHabitat, BasicAction
 
 class PoseTransformer:
     def __init__(self):
@@ -31,7 +31,7 @@ class EpisodeManager:
         self.transformer = PoseTransformer()
         
         # Load episode data from JSON file
-        with open('/home/aaron/catkin_ws/src/publish_test/evaluation/episodes/normal_rotated.json') as f: # combined_episodes_inverted_again
+        with open('/home/aaron/catkin_ws/src/HabitatRosIntegration/episodes/normal_rotated.json') as f: # combined_episodes_inverted_again
             self.episodes = json.load(f)
 
         # Initialize current episode

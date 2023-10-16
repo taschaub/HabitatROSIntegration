@@ -7,7 +7,7 @@ import habitat
 # from habitat.config.default import get_config
 import random
 from habitat.core.simulator import AgentState
-from publish_test.msg import BasicAction
+from HabitatRosIntegration.msg import BasicAction
 import sys, termios, tty, os
 
 
@@ -45,7 +45,7 @@ def talker():
 if __name__ == '__main__':
     # print("start config")
     # config = habitat.get_config(
-    #     config_path="/home/aaron/catkin_ws/src/publish_test/src/config/website_config.yaml"
+    #     config_path="/home/aaron/catkin_ws/src/HabitatRosIntegration/src/config/website_config.yaml"
     # )
     # print("Environment creation successful")
     # print(config)

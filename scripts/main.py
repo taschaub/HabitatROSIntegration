@@ -7,7 +7,7 @@ from queue import Queue
 from threading import Thread
 from sensor_msgs.msg import Image as RosImage, CameraInfo
 from geometry_msgs.msg import Twist, PoseStamped
-from publish_test.msg import SetupHabitat, BasicAction
+from HabitatRosIntegration.msg import SetupHabitat, BasicAction
 import tf2_ros
 from habitat_sim_thread import habitat_sim_thread
 
