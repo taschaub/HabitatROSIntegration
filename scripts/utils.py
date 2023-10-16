@@ -4,7 +4,7 @@ import cv2
 import habitat_sim
 from sensor_msgs.msg import LaserScan
 from actionlib_msgs.msg import GoalStatusArray
-from HabitatRosIntegration.msg import BasicAction
+from publish_test.msg import BasicAction
 import re
 
 def convert_to_laserscan(xyz_camera, scan_height=0.5, height_tolerance=0.2, angle_min=-np.pi, angle_max=np.pi, range_min=0.0, range_max=10.0):

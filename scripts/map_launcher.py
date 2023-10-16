@@ -8,7 +8,7 @@ import signal
 import os
 import sys
 import time
-from HabitatRosIntegration.msg import BasicAction
+from publish_test.msg import BasicAction
 from utils import temporary_subscribe
 
 # Global variables
@@ -48,7 +48,7 @@ def switch_scene_callback(msg):
         scene_name = msg.Action
         if map_server_process:
             os.killpg(os.getpgid(map_server_process.pid), signal.SIGTERM)
-        map_yaml_path = f"/home/aaron/catkin_ws/src/HabitatRosIntegration/evaluation/maps/{scene_name}.yaml"
+        map_yaml_path = f"/home/aaron/catkin_ws/src/publish_test/evaluation/maps/{scene_name}.yaml"
         map_server_process = subprocess.Popen(['rosrun', 'map_server', 'map_server', map_yaml_path], preexec_fn=os.setsid)
 
     elif msg.ActionIdx == 1:

@@ -4,14 +4,14 @@ import rospy
 import tf
 from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PoseStamped
-from HabitatRosIntegration.msg import BasicAction
+from publish_test.msg import BasicAction
 import pandas as pd
 import pickle
 import os
 
 class Evaluation:
     evaluation_run_name = 'rosnav11'
-    base_directory = f'/home/aaron/catkin_ws/src/HabitatRosIntegration/evaluation/evaluation_{evaluation_run_name}/'  # Class variable for the base directory
+    base_directory = f'/home/aaron/catkin_ws/src/publish_test/evaluation/evaluation_{evaluation_run_name}/'  # Class variable for the base directory
     
     def __init__(self):
         # Initialize node
