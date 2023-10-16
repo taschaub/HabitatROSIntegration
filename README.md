@@ -6,23 +6,23 @@ This repository is dedicated to the integration of Habitat with ROS (Robot Opera
 
 Additionally, this tool provides an evaluation stack, which facilitates the comparison of various navigation algorithms through navigation episodes. A test episode in a sample scene is provided, but users have the flexibility to extend with more episodes and scenes.
 
-![Program Structure](path_to_program_structure_image.png)
+![Program Structure](projectStructure.png)
 
 ## Installation & Setup
 
 ### Prerequisites:
-1. Install ROS Noetic: [ROS Noetic Installation Guide]http://wiki.ros.org/noetic/Installation
+1. Install ROS Noetic: [ROS Noetic Installation Guide](http://wiki.ros.org/noetic/Installation)
 2. Install the newest version of Habitat Lab: [Habitat Lab's official documentation](https://github.com/facebookresearch/habitat-lab).
 3. Ensure the HM3D datasets are downloaded.
 
 ### Repository Setup:
-1. Clone the main repository:
-    ```bash
-    git clone https://github.com/taschaub/my_robot_navigation.git
-    ```
-2. Navigate to your `catkin_ws` and clone the repository, then build:
+1. Navigate to your `catkin_ws and clone the main repository:
     ```bash
     cd path_to_catkin_ws
+    git clone https://github.com/taschaub/HabitatROSIntegration.git
+    ```
+2. Clone the additional repository, then build:
+    ```bash
     git clone https://github.com/taschaub/my_robot_navigation.git
     catkin_make
     ```
@@ -48,6 +48,7 @@ Additionally, this tool provides an evaluation stack, which facilitates the comp
      ```
    - Run the following commands in order:
      ```bash
+     rosrun my_robot_navigation depthimage_to_laserscan
      rosrun habitat_ros_integration maplauncher
      rosrun habitat_ros_integration Evaluation
      ```
