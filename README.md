@@ -42,10 +42,7 @@ Additionally, this tool provides an evaluation stack, which facilitates the comp
 Before each `rosrun`, ensure you've sourced `devel/setup.bash`:
    ```bash
    source devel/setup.bash
-
-
-## Usage
-
+  ```
 1. To test the Habitat-ROS integration:
     ```bash
     rosrun habitat_ros_integration main
