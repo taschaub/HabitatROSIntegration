@@ -1,5 +1,6 @@
 # HabitatROSIntegration
 Integration of Habitat's 3D simulation with ROS for efficient robot control and real-time sensor data extraction, addressing the challenges of real-world robotic navigation evaluations.
+
 # Habitat-ROS Integration: Robot Navigation in Photorealistic 3D Environments
 
 This repository is dedicated to the integration of Habitat with ROS (Robot Operating System). With this tool, users can control a robot within a photorealistic 3D scene in Habitat using ROS, specifically through a `cmd_vel`. As the robot moves within the Habitat environment, Habitat provides the sensor data and transformations back to ROS. 
@@ -11,12 +12,17 @@ Additionally, this tool provides an evaluation stack, which facilitates the comp
 ## Installation & Setup
 
 ### Prerequisites:
-1. Install ROS Noetic: [ROS Noetic Installation Guide](http://wiki.ros.org/noetic/Installation)
-2. Install the newest version of Habitat Lab: [Habitat Lab's official documentation](https://github.com/facebookresearch/habitat-lab).
-3. Ensure the HM3D datasets are downloaded.
+1. Setup a virtual environment with Python 3.8.
+    ```bash
+    mkvirtualenv -p python3.8 venv_name
+    workon venv_name
+    ```
+2. Install ROS Noetic: [ROS Noetic Installation Guide](http://wiki.ros.org/noetic/Installation).
+3. Install Habitat Lab v0.2.3 and Habitat Sim v0.2.3: [Habitat Lab's official documentation](https://github.com/facebookresearch/habitat-lab).
+4. Ensure the HM3D datasets are downloaded.
 
 ### Repository Setup:
-1. Navigate to your `catkin_ws and clone the main repository:
+1. Navigate to your `catkin_ws` and clone the main repository:
     ```bash
     cd path_to_catkin_ws
     git clone https://github.com/taschaub/HabitatROSIntegration.git
@@ -26,6 +32,17 @@ Additionally, this tool provides an evaluation stack, which facilitates the comp
     git clone https://github.com/taschaub/my_robot_navigation.git
     catkin_make
     ```
+3. Install the needed packages:
+    ```bash
+    cd HabitatROSIntegration
+    pip install -r requirements.txt
+    ```
+
+## Usage
+Before each `rosrun`, ensure you've sourced `devel/setup.bash`:
+   ```bash
+   source devel/setup.bash
+
 
 ## Usage
 
@@ -48,7 +65,7 @@ Additionally, this tool provides an evaluation stack, which facilitates the comp
      ```
    - Run the following commands in order:
      ```bash
-     rosrun my_robot_navigation depthimage_to_laserscan
+     roslaunch my_robot_navigation depthimage_to_laserscan
      rosrun habitat_ros_integration maplauncher
      rosrun habitat_ros_integration Evaluation
      ```

@@ -166,8 +166,10 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/publisher_test.py 
-  scripts/habitat_test.py 
   scripts/main.py
+  scripts/EpisodeManager.py
+  scripts/Evaluation.py
+  scripts/map_launcher.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

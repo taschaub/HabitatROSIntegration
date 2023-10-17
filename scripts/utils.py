@@ -93,8 +93,155 @@ def print_screen(rgb_image, depth_data):
     # Optionally display the depth image
     cv2.waitKey(1)
 
-# Additional functions init_robot(), discrete_vel_control(), etc. should be appropriately commented similarly.
 
+def init_robot(sim, obj_templates_mgr, rigid_obj_mgr):
+    locobot_template_id = obj_templates_mgr.load_configs(
+        "/home/aaron/rosxhab/habitat-sim/data/objects/locobot_merged"
+    )[0]
+    # add robot object to the scene with the agent/camera SceneNode attached
+    rigid_robot = rigid_obj_mgr.add_object_by_template_id(
+        locobot_template_id, sim.agents[0].scene_node
+    )
+    initial_rotation = rigid_robot.rotation
+
+    # set the agent's body to kinematic since we will be updating position manually
+    rigid_robot.motion_type = habitat_sim.physics.MotionType.KINEMATIC
+
+    # create and configure a new VelocityControl structure
+    # Note: this is NOT the object's VelocityControl, so it will not be consumed automatically in sim.step_physics
+    vel_control = habitat_sim.physics.VelocityControl()
+    vel_control.controlling_lin_vel = True
+    vel_control.lin_vel_is_local = True
+    vel_control.controlling_ang_vel = True
+    vel_control.ang_vel_is_local = True
+    vel_control.linear_velocity = [0.0, 0.0, 0.0]
+
+    return rigid_robot, vel_control
+
+def discrete_vel_control(sim, action_name, vel_control, rigid_robot, time_step):
+    if action_name == "move_forward":
+        previous_rigid_state = rigid_robot.rigid_state
+        vel_control.linear_velocity = [0.0, 0.0, -1.0]
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+
+        # snap rigid state to navmesh and set state to object/agent
+        end_pos = sim.step_filter(
+            previous_rigid_state.translation, target_rigid_state.translation
+        )
+        rigid_robot.translation = end_pos
+        rigid_robot.rotation = target_rigid_state.rotation
+
+        # Check if a collision occured
+        dist_moved_before_filter = (
+            target_rigid_state.translation - previous_rigid_state.translation
+        ).dot()
+        dist_moved_after_filter = (
+            end_pos - previous_rigid_state.translation).dot()
+
+        # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
+        # collision _didn't_ happen. One such case is going up stairs.  Instead,
+        # we check to see if the the amount moved after the application of the filter
+        # is _less_ than the amount moved before the application of the filter
+        EPS = 1e-5
+        collided = (dist_moved_after_filter + EPS) < dist_moved_before_filter
+
+        # run any dynamics simulation
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()
+
+    if action_name == "turn left":
+        vel_control.angular_velocity = [0.0, 2.0, 0.0]
+
+        previous_rigid_state = rigid_robot.rigid_state
+
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()
+
+    if action_name == "turn right":
+        vel_control.angular_velocity = [0.0, -2.0, 0.0]
+
+        previous_rigid_state = rigid_robot.rigid_state
+
+        # manually integrate the rigid state
+        target_rigid_state = vel_control.integrate_transform(
+            time_step, previous_rigid_state
+        )
+
+        sim.step_physics(time_step)
+        observations = sim.get_sensor_observations()
+
+    if action_name == "stop":
+        last_velocity_set = 0
+        vel_control.linear_velocity = [0.0, 0.0, 1.0]
+
+    if action_name == "print screen":
+        # Access the depth sensor data
+        depth_data = observations["depth"]
+
+        max_val = depth_data.max()
+
+        # Convert depth data to a format suitable for saving as an image
+        depth_image = ((depth_data/max_val)*255).astype(np.uint8)
+
+        # Save the depth image to a file
+        cv2.imwrite("depth_image.png", depth_image)
+        # cv2.imwrite('ego_map_image.png', rgb_image)
+
+        # Display the depth image
+        # cv2.imshow("Depth Image", depth_image)
+        cv2.waitKey(1)
+
+
+received_message = None
+subscriber = None
+
+def callback(data):
+    global received_message
+    
+    received_message = True
+    # Unregister the subscriber after receiving a message
+    subscriber.unregister()
+
+def temporary_subscribe():
+    global subscriber
+    
+    # Start the subscriber
+    subscriber = rospy.Subscriber("/move_base/status", GoalStatusArray, callback)
+    
+    # Wait until a message is received or a timeout occurs
+    timeout = rospy.Duration(10)  # 10 seconds
+    start_time = rospy.Time.now()
+    while not received_message and (rospy.Time.now() - start_time) < timeout:
+        rospy.sleep(0.1)
+
+    # If a message was received, the callback would have unregistered the subscriber.
+    # Otherwise, unregister it now after the timeout.
+    if not received_message:
+        subscriber.unregister()
+
+    # Continue with your program
+    if received_message:
+        # print(f"Received message: {received_message}")
+        # confirm_pub = rospy.Publisher('/confirm_move_base', BasicAction, queue_size=10)
+        # confirm_cmd = BasicAction()
+        # confirm_cmd.Action = "OK"
+        # confirm_cmd.ActionIdx = 2
+        # rospy.loginfo(confirm_cmd)
+        # confirm_pub.publish(confirm_cmd)
+        # confirm_pub.unregister()
+        print("test")
+
+    else:
+        print("Did not receive any message within the timeout period.")
+        
 def extract_scene_name(s):
     """
     Extract the scene name from the given string `s`.
